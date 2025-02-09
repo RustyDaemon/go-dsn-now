@@ -13,6 +13,7 @@ type AppData struct {
 	DSNConfig             response.DSNConfig
 	IsPreviewShown        bool
 	IsSpecsShown          bool
+	IsAboutShown          bool
 }
 
 func NewAppData() *AppData {
@@ -27,16 +28,9 @@ func NewAppData() *AppData {
 		FullData:              FullData{},
 		IsPreviewShown:        false,
 		IsSpecsShown:          false,
+		IsAboutShown:          false,
 	}
 }
-
-//func (data *AppData) UpdateDSNConfig(config response.DSNConfig) {
-//	data.dsnConfig = config
-//}
-//
-//func (data *AppData) GetDSNConfig() response.DSNConfig {
-//	return data.dsnConfig
-//}
 
 func (data *AppData) GetSelectedDish() (res Dish, ok bool) {
 	if data.SelectedStationIdx < 0 || data.SelectedDishIdx < 0 {

@@ -18,6 +18,7 @@ type UI struct {
 	uiDetails       *uiDetails
 	jsonPreview     *tview.TextArea
 	dishSpecsView   *uiDishSpec
+	aboutView       *uiAbout
 	statusBar       *tview.TextView
 	targetsView     *tview.Flex
 	upSignalsView   *tview.Flex
@@ -80,4 +81,9 @@ type uiDownSignalView struct {
 	freqBand      *tview.TextView
 	dataRate      *tview.TextView
 	powerReceived *tview.TextView
+}
+
+type uiAbout struct {
+	version *tview.TextView
+	url     *tview.TextView
 }

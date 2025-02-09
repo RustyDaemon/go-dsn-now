@@ -77,14 +77,14 @@ func onListItemChanged(index int) {
 	updateUpSignalsTitleData()
 	updateDownSignalsTitleData()
 
-	if !data.IsPreviewShown && !data.IsSpecsShown {
+	if !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown {
 		updateStatusBar(true)
 	}
 }
 
 func setKeybindings() {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if !data.IsPreviewShown && !data.IsSpecsShown {
+		if !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown {
 			switch event.Rune() {
 			case 's':
 				updateStationSelection()
@@ -108,6 +108,13 @@ func setKeybindings() {
 				data.IsSpecsShown = true
 				updateStatusBar(false)
 				showDishSpecs()
+			case '?':
+				if !data.IsReady {
+					break
+				}
+				data.IsAboutShown = true
+				updateStatusBar(false)
+				ui.OpenAboutModal()
 			}
 		}
 
@@ -122,6 +129,10 @@ func setKeybindings() {
 		} else if event.Key() == tcell.KeyEscape && data.IsSpecsShown {
 			ui.CloseDishSpecificationModal()
 			data.IsSpecsShown = false
+			updateStatusBar(true)
+		} else if event.Key() == tcell.KeyEscape && data.IsAboutShown {
+			ui.CloseAboutModal()
+			data.IsAboutShown = false
 			updateStatusBar(true)
 		}
 
