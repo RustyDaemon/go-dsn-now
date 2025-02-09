@@ -51,6 +51,7 @@ go-dsn-now
 | `i`      | See detailed antenna specification |
 | `p`      | See JSON structured data           |
 | `ESC`    | Close a popup *                    |
+| `?`      | See about information              |
 | `q`      | Quit the application               |
 
 `*` - available only if the respective data is available.
