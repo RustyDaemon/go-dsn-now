@@ -20,6 +20,7 @@ func NewUI() *UI {
 			downSignalView: &uiDownSignalView{},
 		},
 		dishSpecsView: &uiDishSpec{},
+		aboutView:     &uiAbout{},
 	}
 }
 
@@ -38,7 +39,8 @@ func (u *UI) BuildAppUI(onListItemChanged func(index int)) *tview.Pages {
 		AddPage("main", layout, true, true).
 		AddPage("initializingModal", buildInitializingModal(), true, true).
 		AddPage("jsonPreviewModal", u.buildJSONPreviewModal(), true, false).
-		AddPage("dishSpecificationModal", u.buildDishSpecsModal(), true, false)
+		AddPage("dishSpecificationModal", u.buildDishSpecsModal(), true, false).
+		AddPage("aboutModal", u.buildAboutModal(), true, false)
 
 	return u.pages
 }
@@ -54,6 +56,14 @@ func (u *UI) CloseJSONPreviewModal() {
 
 func (u *UI) CloseInitializingModal() {
 	u.pages.HidePage("initializingModal")
+}
+
+func (u *UI) OpenAboutModal() {
+	u.pages.ShowPage("aboutModal")
+}
+
+func (u *UI) CloseAboutModal() {
+	u.pages.HidePage("aboutModal")
 }
 
 func (u *UI) OpenDishSpecificationModal(spec model.DishSpecification) {
@@ -117,7 +127,7 @@ func (u *UI) UpdateStatusBar(params StatusBarParams) {
 	if !params.DefaultStatus {
 		u.statusBar.SetText("[green](Esc)[-] close preview")
 	} else {
-		defaultText := "[green]s[-] station, %t%u%p%s[green]p[-] JSON, [green]q[-] exit"
+		defaultText := "[green]s[-] station, %t%u%p%s[green]p[-] JSON, [green]?[-] about, [green]q[-] exit"
 
 		if params.HasTargets {
 			defaultText = strings.Replace(defaultText, "%t", "[green]t[-] target, ", 1)

@@ -1,6 +1,8 @@
 package gui
 
 import (
+	"fmt"
+	"github.com/RustyDaemon/go-dsn-now/data"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -394,6 +396,47 @@ func (u *UI) buildDishSpecsModal() tview.Primitive {
 	u.dishSpecsView.maxWindResist = maxWindResistValueView
 	u.dishSpecsView.builtIn = builtInValueView
 	u.dishSpecsView.url = urlValueView
+
+	return modal(view)
+}
+
+func (u *UI) buildAboutModal() tview.Primitive {
+	view := tview.NewFlex()
+
+	versionView := NewTextView("Version:")
+	versionValueView := NewTextView(fmt.Sprintf("[yellow]%s[-]", data.AppVersion))
+
+	githubView := NewTextView("GitHub:")
+	githubViewView := NewTextView(fmt.Sprintf("[yellow:::%s]%s[-:-:-:-]", data.AppGithubUrl, data.AppGithubUrl))
+
+	dataView := tview.NewFlex().SetDirection(tview.FlexRow)
+	dataView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(versionView, 0, 1, false).
+		AddItem(versionValueView, 0, 2, false),
+		0, 1, false)
+	dataView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(githubView, 0, 1, false).
+		AddItem(githubViewView, 0, 2, false),
+		0, 1, false)
+	view.AddItem(dataView, 0, 1, false)
+
+	view.SetBorder(true).SetTitle(" About ").
+		SetTitleColor(tcell.ColorYellow).SetTitleAlign(tview.AlignCenter).
+		SetBorderColor(tcell.ColorYellow)
+
+	modal := func(p tview.Primitive) tview.Primitive {
+		return tview.NewFlex().
+			AddItem(nil, 3, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(nil, 0, 3, false).
+				AddItem(p, 4, 1, true).
+				AddItem(nil, 0, 3, false),
+				0, 3, true).
+			AddItem(nil, 3, 1, false)
+	}
+
+	u.aboutView.version = versionValueView
+	u.aboutView.url = githubViewView
 
 	return modal(view)
 }
