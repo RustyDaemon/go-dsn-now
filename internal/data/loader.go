@@ -1,12 +1,11 @@
-package network
+package data
 
 import (
 	"encoding/xml"
 	"fmt"
+	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 	"net/http"
 	"time"
-
-	"github.com/RustyDaemon/go-dsn-now/model/response"
 )
 
 var (

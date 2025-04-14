@@ -62,8 +62,4 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 The project uses other libraries and frameworks that are licensed under different licenses. Please refer to the respective libraries for their licenses.
 
-NASA Deep Space Network Now data is provided by NASA and is subject to their terms and conditions.
-
-## Thanks
-
-Thanks to NASA for providing the data for this application - [NASA Deep Space Network Now API](https://eyes.nasa.gov/dsn/dsn.html).
+[NASA Deep Space Network Now](https://eyes.nasa.gov/dsn/dsn.html) data is provided (non-direct) by NASA and is subject to their terms and conditions. This project is not affiliated with NASA or any of its subsidiaries. The data is provided and used for educational and informational purposes only.

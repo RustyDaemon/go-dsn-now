@@ -3,30 +3,28 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/RustyDaemon/go-dsn-now/internal/data"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
-	"github.com/RustyDaemon/go-dsn-now/gui"
-	"github.com/RustyDaemon/go-dsn-now/mapper"
-	"github.com/RustyDaemon/go-dsn-now/model"
-	"github.com/RustyDaemon/go-dsn-now/model/response"
-	"github.com/RustyDaemon/go-dsn-now/network"
+	"github.com/RustyDaemon/go-dsn-now/internal/gui"
+	"github.com/RustyDaemon/go-dsn-now/internal/model"
+	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 	"github.com/gdamore/tcell/v2"
-
 	"github.com/rivo/tview"
 )
 
 var (
-	app  *tview.Application
-	ui   *gui.UI
-	data *model.AppData
+	app     *tview.Application
+	ui      *gui.UI
+	appData *model.AppData
 )
 
 func main() {
-	data = model.NewAppData()
+	appData = model.NewAppData()
 
 	app = tview.NewApplication()
 	ui = gui.NewUI()
@@ -41,15 +39,15 @@ func main() {
 
 	signal.Notify(interrupt, os.Interrupt)
 
-	go network.LoadDSNConfig(chanConfig, chanError)
+	go data.LoadDSNConfig(chanConfig, chanError)
 
 	select {
-	case data.DSNConfig = <-chanConfig:
+	case appData.DSNConfig = <-chanConfig:
 	case err := <-chanError:
 		log.Fatal(err)
 	}
 
-	mapper.MapConfigToFullData(data.DSNConfig, &data.FullData)
+	data.MapConfigToFullData(appData.DSNConfig, &appData.FullData)
 
 	go runDSNDataLoader(chanDSNData, chanError, interrupt)
 
@@ -77,14 +75,14 @@ func onListItemChanged(index int) {
 	updateUpSignalsTitleData()
 	updateDownSignalsTitleData()
 
-	if !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown {
+	if !appData.IsPreviewShown && !appData.IsSpecsShown && !appData.IsAboutShown {
 		updateStatusBar(true)
 	}
 }
 
 func setKeybindings() {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown {
+		if !appData.IsPreviewShown && !appData.IsSpecsShown && !appData.IsAboutShown {
 			switch event.Rune() {
 			case 's':
 				updateStationSelection()
@@ -95,24 +93,24 @@ func setKeybindings() {
 			case 'd':
 				updateDownSignalSelection()
 			case 'p':
-				if !data.IsReady {
+				if !appData.IsReady {
 					break
 				}
-				data.IsPreviewShown = true
+				appData.IsPreviewShown = true
 				updateStatusBar(false)
 				showPreview()
 			case 'i':
-				if !data.IsReady {
+				if !appData.IsReady {
 					break
 				}
-				data.IsSpecsShown = true
+				appData.IsSpecsShown = true
 				updateStatusBar(false)
 				showDishSpecs()
 			case '?':
-				if !data.IsReady {
+				if !appData.IsReady {
 					break
 				}
-				data.IsAboutShown = true
+				appData.IsAboutShown = true
 				updateStatusBar(false)
 				ui.OpenAboutModal()
 			}
@@ -122,17 +120,17 @@ func setKeybindings() {
 			app.Stop()
 		}
 
-		if event.Key() == tcell.KeyEscape && data.IsPreviewShown {
+		if event.Key() == tcell.KeyEscape && appData.IsPreviewShown {
 			ui.CloseJSONPreviewModal()
-			data.IsPreviewShown = false
+			appData.IsPreviewShown = false
 			updateStatusBar(true)
-		} else if event.Key() == tcell.KeyEscape && data.IsSpecsShown {
+		} else if event.Key() == tcell.KeyEscape && appData.IsSpecsShown {
 			ui.CloseDishSpecificationModal()
-			data.IsSpecsShown = false
+			appData.IsSpecsShown = false
 			updateStatusBar(true)
-		} else if event.Key() == tcell.KeyEscape && data.IsAboutShown {
+		} else if event.Key() == tcell.KeyEscape && appData.IsAboutShown {
 			ui.CloseAboutModal()
-			data.IsAboutShown = false
+			appData.IsAboutShown = false
 			updateStatusBar(true)
 		}
 
@@ -141,7 +139,7 @@ func setKeybindings() {
 }
 
 func updateStatusBar(defaultStatus bool) {
-	if !data.IsReady {
+	if !appData.IsReady {
 		return
 	}
 
@@ -152,19 +150,19 @@ func updateStatusBar(defaultStatus bool) {
 		return
 	}
 
-	if targets, ok := data.GetTargets(); ok {
+	if targets, ok := appData.GetTargets(); ok {
 		params.HasTargets = len(targets) > 1
 	}
 
-	if upSignals, ok := data.GetUpSignals(); ok {
+	if upSignals, ok := appData.GetUpSignals(); ok {
 		params.HasUpSignals = len(upSignals) > 1
 	}
 
-	if downSignals, ok := data.GetDownSignals(); ok {
+	if downSignals, ok := appData.GetDownSignals(); ok {
 		params.HasDownSignals = len(downSignals) > 1
 	}
 
-	if data.HasAntennaSpecs() {
+	if appData.HasAntennaSpecs() {
 		params.HasAntennaSpec = true
 	}
 
@@ -172,19 +170,19 @@ func updateStatusBar(defaultStatus bool) {
 }
 
 func onDataReceived(dsnData response.DSN) {
-	mapper.MapDataToFullData(dsnData, &data.FullData)
+	data.MapDataToFullData(dsnData, &appData.FullData)
 	app.QueueUpdateDraw(func() {
-		if data.FullData.Stations == nil {
+		if appData.FullData.Stations == nil {
 			return
 		}
 
-		if !data.IsReady {
-			data.IsReady = true
+		if !appData.IsReady {
+			appData.IsReady = true
 			ui.CloseInitializingModal()
 		}
 
-		if data.SelectedStationIdx < 0 {
-			data.SelectedStationIdx = 0
+		if appData.SelectedStationIdx < 0 {
+			appData.SelectedStationIdx = 0
 		}
 
 		populateStationsData()
@@ -196,7 +194,7 @@ func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os
 	chanDSNData := make(chan response.DSN)
 	chanError := make(chan error)
 
-	go network.LoadDSNData(chanDSNData, chanError)
+	go data.LoadDSNData(chanDSNData, chanError)
 
 	select {
 	case dsnData := <-chanDSNData:
@@ -216,7 +214,7 @@ func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os
 	for {
 		select {
 		case <-ticker.C:
-			go network.LoadDSNData(chanDSNData, chanError)
+			go data.LoadDSNData(chanDSNData, chanError)
 
 			select {
 			case dsnData := <-chanDSNData:
@@ -234,21 +232,21 @@ func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os
 }
 
 func populateStationsData() {
-	stations := data.FullData.Stations
+	stations := appData.FullData.Stations
 
 	if len(stations) == 0 {
 		ui.UpdateStationsList("")
 		return
 	}
 
-	if data.SelectedStationIdx < 0 {
+	if appData.SelectedStationIdx < 0 {
 		return
 	}
 
 	text := ""
 
 	for i, station := range stations {
-		if i == data.SelectedStationIdx {
+		if i == appData.SelectedStationIdx {
 			stationName := fmt.Sprintf("[green::b]%s[-:-:-:-]", station.Name)
 			text = fmt.Sprintf("%s%s %s", text, stationName, strings.ToLower(station.Flag))
 			info := fmt.Sprintf("[green::b]%s[-:-:-:-]", station.FriendlyName)
@@ -267,7 +265,7 @@ func populateStationsData() {
 }
 
 func updateDownSignalsTitleData() {
-	downSignals, ok := data.GetDownSignals()
+	downSignals, ok := appData.GetDownSignals()
 	if !ok {
 		return
 	}
@@ -280,12 +278,12 @@ func updateDownSignalsTitleData() {
 
 	titles := ""
 
-	if data.SelectedDownSignalIdx >= len(downSignals) {
-		data.SelectedDownSignalIdx = 0
+	if appData.SelectedDownSignalIdx >= len(downSignals) {
+		appData.SelectedDownSignalIdx = 0
 	}
 
 	for i := range downSignals {
-		if i == data.SelectedDownSignalIdx {
+		if i == appData.SelectedDownSignalIdx {
 			titles += fmt.Sprintf("[green::b][%d][-:-:-:-]", i+1)
 		} else {
 			titles += fmt.Sprintf("[%d]", i+1)
@@ -293,11 +291,11 @@ func updateDownSignalsTitleData() {
 	}
 
 	ui.UpdateDownSignalsTitleData(titles)
-	ui.UpdateDownSignalData(downSignals[data.SelectedDownSignalIdx])
+	ui.UpdateDownSignalData(downSignals[appData.SelectedDownSignalIdx])
 }
 
 func updateUpSignalsTitleData() {
-	upSignals, ok := data.GetUpSignals()
+	upSignals, ok := appData.GetUpSignals()
 	if !ok {
 		return
 	}
@@ -310,12 +308,12 @@ func updateUpSignalsTitleData() {
 
 	titles := ""
 
-	if data.SelectedUpSignalIdx < 0 && len(upSignals) > 0 {
-		data.SelectedUpSignalIdx = 0
+	if appData.SelectedUpSignalIdx < 0 && len(upSignals) > 0 {
+		appData.SelectedUpSignalIdx = 0
 	}
 
 	for i := range upSignals {
-		if i == data.SelectedUpSignalIdx {
+		if i == appData.SelectedUpSignalIdx {
 			titles += fmt.Sprintf("[green::b][%d][-:-:-:-]", i+1)
 		} else {
 			titles += fmt.Sprintf("[%d]", i+1)
@@ -323,11 +321,11 @@ func updateUpSignalsTitleData() {
 	}
 
 	ui.UpdateUpSignalsTitleData(titles)
-	ui.UpdateUpSignalData(upSignals[data.SelectedUpSignalIdx])
+	ui.UpdateUpSignalData(upSignals[appData.SelectedUpSignalIdx])
 }
 
 func updateTargetsData() {
-	targets, ok := data.GetTargets()
+	targets, ok := appData.GetTargets()
 	if !ok {
 		return
 	}
@@ -340,12 +338,12 @@ func updateTargetsData() {
 
 	titles := ""
 
-	if data.SelectedTargetIdx >= len(targets) {
-		data.SelectedTargetIdx = 0
+	if appData.SelectedTargetIdx >= len(targets) {
+		appData.SelectedTargetIdx = 0
 	}
 
 	for i, target := range targets {
-		if i == data.SelectedTargetIdx {
+		if i == appData.SelectedTargetIdx {
 			titles += fmt.Sprintf("[green::b]%s[-:-:-:-]", target.Name)
 		} else {
 			titles += target.Name
@@ -359,81 +357,81 @@ func updateTargetsData() {
 	}
 
 	ui.UpdateTargetsTitleData(titles)
-	ui.UpdateTargetData(targets[data.SelectedTargetIdx])
+	ui.UpdateTargetData(targets[appData.SelectedTargetIdx])
 }
 
 func updateDownSignalSelection() {
-	if !data.IsReady {
+	if !appData.IsReady {
 		return
 	}
 
-	downSignals, ok := data.GetDownSignals()
+	downSignals, ok := appData.GetDownSignals()
 	if !ok || downSignals == nil || len(downSignals) == 0 {
 		return
 	}
 
-	data.SelectedDownSignalIdx += 1
+	appData.SelectedDownSignalIdx += 1
 
-	if data.SelectedDownSignalIdx >= len(downSignals) {
-		data.SelectedDownSignalIdx = 0
+	if appData.SelectedDownSignalIdx >= len(downSignals) {
+		appData.SelectedDownSignalIdx = 0
 	}
 
 	updateDownSignalsTitleData()
 }
 
 func updateUpSignalSelection() {
-	if !data.IsReady {
+	if !appData.IsReady {
 		return
 	}
 
-	upSignals, ok := data.GetUpSignals()
+	upSignals, ok := appData.GetUpSignals()
 	if !ok || upSignals == nil || len(upSignals) == 0 {
 		return
 	}
 
-	data.SelectedUpSignalIdx += 1
+	appData.SelectedUpSignalIdx += 1
 
-	if data.SelectedUpSignalIdx >= len(upSignals) {
-		data.SelectedUpSignalIdx = 0
+	if appData.SelectedUpSignalIdx >= len(upSignals) {
+		appData.SelectedUpSignalIdx = 0
 	}
 
 	updateUpSignalsTitleData()
 }
 
 func updateTargetSelection() {
-	if !data.IsReady {
+	if !appData.IsReady {
 		return
 	}
 
-	targets, ok := data.GetTargets()
+	targets, ok := appData.GetTargets()
 	if !ok || targets == nil || len(targets) == 0 {
 		return
 	}
 
-	data.SelectedTargetIdx += 1
+	appData.SelectedTargetIdx += 1
 
-	if data.SelectedTargetIdx >= len(targets) {
-		data.SelectedTargetIdx = 0
+	if appData.SelectedTargetIdx >= len(targets) {
+		appData.SelectedTargetIdx = 0
 	}
 
 	updateTargetsData()
 }
 
 func updateDishDetails(index int) {
-	if data.SelectedStationIdx < 0 {
+	if appData.SelectedStationIdx < 0 {
 		return
 	}
 
-	data.SelectedDishIdx = index
+	appData.SelectedDishIdx = index
 
-	selectedStation := data.FullData.Stations[data.SelectedStationIdx]
+	selectedStation := appData.FullData.Stations[appData.SelectedStationIdx]
 	dish := selectedStation.Dishes[index]
 
 	ui.UpdateDetailsText(dish)
 }
 
 func showPreview() {
-	dish, ok := data.GetSelectedDish()
+	dish, ok := appData.GetSelectedDish()
 	if !ok {
 		return
 	}
@@ -447,7 +445,7 @@ func showPreview() {
 }
 
 func showDishSpecs() {
-	dish, ok := data.GetSelectedDish()
+	dish, ok := appData.GetSelectedDish()
 	if !ok {
 		return
 	}
@@ -460,30 +458,30 @@ func showDishSpecs() {
 }
 
 func updateStationSelection() {
-	if !data.IsReady {
+	if !appData.IsReady {
 		return
 	}
 
-	data.SelectedStationIdx += 1
+	appData.SelectedStationIdx += 1
 
-	if data.SelectedStationIdx >= len(data.FullData.Stations) {
-		data.SelectedStationIdx = 0
+	if appData.SelectedStationIdx >= len(appData.FullData.Stations) {
+		appData.SelectedStationIdx = 0
 	}
 
-	data.SelectedDishIdx = 0
+	appData.SelectedDishIdx = 0
 	populateStationsData()
 	updateDishesList()
 }
 
 func updateDishesList() {
-	currDishSelected := data.SelectedDishIdx
-	currUpSignalSelected := data.SelectedUpSignalIdx
-	currDownSignalSelected := data.SelectedDownSignalIdx
-	currTargetSelected := data.SelectedTargetIdx
+	currDishSelected := appData.SelectedDishIdx
+	currUpSignalSelected := appData.SelectedUpSignalIdx
+	currDownSignalSelected := appData.SelectedDownSignalIdx
+	currTargetSelected := appData.SelectedTargetIdx
 
 	ui.ClearDishesList()
 
-	selectedStation := data.FullData.Stations[data.SelectedStationIdx]
+	selectedStation := appData.FullData.Stations[appData.SelectedStationIdx]
 
 	for _, dish := range selectedStation.Dishes {
 		upSignalText, downSignalText, nothing := "", "", ""
@@ -513,9 +511,9 @@ func updateDishesList() {
 		ui.AddNewDish(text)
 	}
 
-	data.SelectedDownSignalIdx = currDishSelected
-	data.SelectedUpSignalIdx = currUpSignalSelected
-	data.SelectedDownSignalIdx = currDownSignalSelected
-	data.SelectedTargetIdx = currTargetSelected
+	appData.SelectedDownSignalIdx = currDishSelected
+	appData.SelectedUpSignalIdx = currUpSignalSelected
+	appData.SelectedDownSignalIdx = currDownSignalSelected
+	appData.SelectedTargetIdx = currTargetSelected
 	ui.SetSelectedDish(currDishSelected)
 }
