@@ -2,7 +2,7 @@ package gui
 
 import (
 	"fmt"
-	"github.com/RustyDaemon/go-dsn-now/model"
+	"github.com/RustyDaemon/go-dsn-now/internal/model"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"strconv"

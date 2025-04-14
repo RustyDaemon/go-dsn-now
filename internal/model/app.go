@@ -1,6 +1,8 @@
 package model
 
-import "github.com/RustyDaemon/go-dsn-now/model/response"
+import (
+	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
+)
 
 type AppData struct {
 	IsReady               bool
