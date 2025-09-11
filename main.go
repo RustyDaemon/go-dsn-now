@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/RustyDaemon/go-dsn-now/internal/data"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
+
+	"github.com/RustyDaemon/go-dsn-now/internal/data"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/gui"
 	"github.com/RustyDaemon/go-dsn-now/internal/model"
