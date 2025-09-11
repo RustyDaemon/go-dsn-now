@@ -37,6 +37,9 @@ go install github.com/RustyDaemon/go-dsn-now@latest
 ```bash
 go-dsn-now
 ```
+> If you get `command not found: go-dsn-now` error, do the following:
+> 1. Run `go env GOPATH` to get the `GOPATH` environment variables like `/user/go`.
+> 2. Append `/bin/go-dsn-now` like this `/user/go/bin/go-dsn-now` and execute.
 
 
 ## Keymaps
