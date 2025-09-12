@@ -34,6 +34,10 @@ func NewAppData() *AppData {
 	}
 }
 
+func (data *AppData) IsNoModalShown() bool {
+	return !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown
+}
+
 func (data *AppData) GetSelectedDish() (res Dish, ok bool) {
 	if data.SelectedStationIdx < 0 || data.SelectedDishIdx < 0 {
 		return Dish{}, false

@@ -25,35 +25,38 @@ The NASA Deep Space Network (DSN) is a global system of large antennas and commu
 - **Interactive.** You can select a station, antenna, current target, and both types of signals.
 - **Informative.** You can access detailed information about the station, antenna, target, and signals.
 
-
 ## Installation
 
 - Prerequisites: `Go`
 - Run the following command to install the application:
+
 ```bash
 go install github.com/RustyDaemon/go-dsn-now@latest
 ```
+
 - Run the application:
+
 ```bash
 go-dsn-now
 ```
+
 > If you get `command not found: go-dsn-now` error, do the following:
+>
 > 1. Run `go env GOPATH` to get the `GOPATH` environment variables like `/user/go`.
 > 2. Append `/bin/go-dsn-now` like this `/user/go/bin/go-dsn-now` and execute.
-
 
 ## Keymaps
 
 | Keymap   | Description                        |
-|----------|------------------------------------|
+| -------- | ---------------------------------- |
 | `↑`, `↓` | Select antenna                     |
 | `s`      | Select station                     |
-| `t`      | Switch target *                    |
-| `d`      | Switch Down signal *               |
-| `u`      | Switch Up signal *                 |
+| `t`      | Switch target \*                   |
+| `d`      | Switch Down signal \*              |
+| `u`      | Switch Up signal \*                |
 | `i`      | See detailed antenna specification |
-| `p`      | See JSON structured data           |
-| `ESC`    | Close a popup *                    |
+| `j`      | See JSON structured data           |
+| `ESC`    | Close a popup \*                   |
 | `?`      | See about information              |
 | `q`      | Quit the application               |
 

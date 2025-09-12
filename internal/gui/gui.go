@@ -2,11 +2,12 @@ package gui
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/RustyDaemon/go-dsn-now/internal/model"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"strconv"
-	"strings"
 )
 
 //TODO: refactor this file
@@ -125,30 +126,30 @@ func (u *UI) UpdateDownSignalsTitleData(titles string) {
 
 func (u *UI) UpdateStatusBar(params StatusBarParams) {
 	if !params.DefaultStatus {
-		u.statusBar.SetText("[green](Esc)[-] close preview")
+		u.statusBar.SetText("[green](Esc)[-] close")
 	} else {
-		defaultText := "[green]s[-] station, %t%u%p%s[green]p[-] JSON, [green]?[-] about, [green]q[-] exit"
+		defaultText := "[green]s[-]tation, %t%u%p%s[green]j[-]SON, [green]?[-], [green]q[-]uit"
 
 		if params.HasTargets {
-			defaultText = strings.Replace(defaultText, "%t", "[green]t[-] target, ", 1)
+			defaultText = strings.Replace(defaultText, "%t", "[green]t[-]arget, ", 1)
 		} else {
 			defaultText = strings.Replace(defaultText, "%t", "", 1)
 		}
 
 		if params.HasUpSignals {
-			defaultText = strings.Replace(defaultText, "%u", "[green]u[-] up signal, ", 1)
+			defaultText = strings.Replace(defaultText, "%u", "[green]u[-]p signal, ", 1)
 		} else {
 			defaultText = strings.Replace(defaultText, "%u", "", 1)
 		}
 
 		if params.HasDownSignals {
-			defaultText = strings.Replace(defaultText, "%p", "[green]d[-] down signal, ", 1)
+			defaultText = strings.Replace(defaultText, "%p", "[green]d[-]own signal, ", 1)
 		} else {
 			defaultText = strings.Replace(defaultText, "%p", "", 1)
 		}
 
 		if params.HasAntennaSpec {
-			defaultText = strings.Replace(defaultText, "%s", "[green]i[-] specs, ", 1)
+			defaultText = strings.Replace(defaultText, "%s", "[green]i[-]nfo, ", 1)
 		} else {
 			defaultText = strings.Replace(defaultText, "%s", "", 1)
 		}

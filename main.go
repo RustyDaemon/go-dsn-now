@@ -76,14 +76,14 @@ func onListItemChanged(index int) {
 	updateUpSignalsTitleData()
 	updateDownSignalsTitleData()
 
-	if !appData.IsPreviewShown && !appData.IsSpecsShown && !appData.IsAboutShown {
+	if appData.IsNoModalShown() {
 		updateStatusBar(true)
 	}
 }
 
 func setKeybindings() {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if !appData.IsPreviewShown && !appData.IsSpecsShown && !appData.IsAboutShown {
+		if appData.IsNoModalShown() {
 			switch event.Rune() {
 			case 's':
 				updateStationSelection()
@@ -144,7 +144,9 @@ func updateStatusBar(defaultStatus bool) {
 		return
 	}
 
-	params := gui.StatusBarParams{DefaultStatus: defaultStatus}
+	params := gui.StatusBarParams{
+		DefaultStatus: defaultStatus,
+	}
 
 	if !params.DefaultStatus {
 		ui.UpdateStatusBar(params)
@@ -208,7 +210,6 @@ func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os
 		return
 	}
 
-	// Run the loader repeatedly
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -512,7 +513,7 @@ func updateDishesList() {
 		ui.AddNewDish(text)
 	}
 
-	appData.SelectedDownSignalIdx = currDishSelected
+	appData.SelectedDishIdx = currDishSelected
 	appData.SelectedUpSignalIdx = currUpSignalSelected
 	appData.SelectedDownSignalIdx = currDownSignalSelected
 	appData.SelectedTargetIdx = currTargetSelected
