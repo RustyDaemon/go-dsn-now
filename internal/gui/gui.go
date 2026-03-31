@@ -10,10 +10,9 @@ import (
 	"github.com/rivo/tview"
 )
 
-//TODO: refactor this file
-
-func NewUI() *UI {
+func NewUI(themeName string) *UI {
 	return &UI{
+		theme: GetTheme(themeName),
 		uiDetails: &uiDetails{
 			antennaView:    &uiAntennaView{},
 			targetView:     &uiTargetView{},
@@ -25,8 +24,29 @@ func NewUI() *UI {
 	}
 }
 
+func (u *UI) Theme() *Theme {
+	return u.theme
+}
+
+func (u *UI) SetTheme(name string) {
+	u.theme = GetTheme(name)
+}
+
+func (u *UI) CycleTheme() string {
+	current := u.theme.Name
+	for i, name := range ThemeNames {
+		if name == current {
+			next := ThemeNames[(i+1)%len(ThemeNames)]
+			u.theme = GetTheme(next)
+			return next
+		}
+	}
+	u.theme = DarkTheme
+	return "dark"
+}
+
 func (u *UI) BuildAppUI(onListItemChanged func(index int)) *tview.Pages {
-	u.statusBar = u.buildStatusBar()
+	u.buildStatusBar()
 	u.dishesList = buildDishesList(onListItemChanged)
 
 	targetView := u.buildTargetsView()
@@ -34,7 +54,26 @@ func (u *UI) BuildAppUI(onListItemChanged func(index int)) *tview.Pages {
 	downSignalView := u.buildDownSignalsView()
 	details := u.buildDetailsView(targetView, upSignalView, downSignalView)
 	dishesMenu := u.buildDishesMenu()
-	layout := u.buildLayout(dishesMenu, details)
+
+	// Main detailed view content
+	u.mainContent = tview.NewFlex().
+		AddItem(dishesMenu, 0, 1, true).
+		AddItem(details, 0, 5, false)
+
+	// Compact table view
+	u.compactTable = tview.NewTable().
+		SetSelectable(true, false).
+		SetFixed(1, 0)
+	u.compactTable.SetBorder(true).SetTitle(" All Dishes (compact) ").SetTitleAlign(tview.AlignCenter)
+	u.compactContent = tview.NewFlex().AddItem(u.compactTable, 0, 1, true)
+
+	// Layout container that swaps between main and compact
+	u.layoutContainer = tview.NewFlex().AddItem(u.mainContent, 0, 1, true)
+
+	layout := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(u.layoutContainer, 0, 1, true).
+		AddItem(u.statusBarFlex, 3, 1, false)
 
 	u.pages = tview.NewPages().
 		AddPage("main", layout, true, true).
@@ -44,6 +83,54 @@ func (u *UI) BuildAppUI(onListItemChanged func(index int)) *tview.Pages {
 		AddPage("aboutModal", u.buildAboutModal(), true, false)
 
 	return u.pages
+}
+
+func (u *UI) ToggleCompactView(compact bool) tview.Primitive {
+	if compact {
+		u.layoutContainer.RemoveItem(u.mainContent)
+		u.layoutContainer.AddItem(u.compactContent, 0, 1, true)
+		return u.compactTable
+	}
+	u.layoutContainer.RemoveItem(u.compactContent)
+	u.layoutContainer.AddItem(u.mainContent, 0, 1, true)
+	return u.dishesList
+}
+
+func (u *UI) UpdateCompactTable(rows []CompactRow) {
+	t := u.theme
+	u.compactTable.Clear()
+
+	// Header
+	headers := []string{"Station", "Dish", "Target", "↑", "↓", "Activity"}
+	for i, h := range headers {
+		cell := tview.NewTableCell(h).SetSelectable(false).SetAttributes(tcell.AttrBold)
+		u.compactTable.SetCell(0, i, cell)
+	}
+
+	for i, row := range rows {
+		r := i + 1
+		u.compactTable.SetCell(r, 0, tview.NewTableCell(row.Station))
+		u.compactTable.SetCell(r, 1, tview.NewTableCell(row.Dish))
+		u.compactTable.SetCell(r, 2, tview.NewTableCell(row.Target))
+
+		upCell := tview.NewTableCell(fmt.Sprintf("%d", row.UpSignals))
+		if row.UpSignals > 0 {
+			upCell.SetText(fmt.Sprintf("[%s]%d[-]", t.SignalUp, row.UpSignals))
+		}
+		u.compactTable.SetCell(r, 3, upCell)
+
+		downCell := tview.NewTableCell(fmt.Sprintf("%d", row.DownSignals))
+		if row.DownSignals > 0 {
+			downCell.SetText(fmt.Sprintf("[%s]%d[-]", t.SignalDown, row.DownSignals))
+		}
+		u.compactTable.SetCell(r, 4, downCell)
+
+		actCell := tview.NewTableCell(row.Activity)
+		if row.UpSignals == 0 && row.DownSignals == 0 {
+			actCell.SetText(fmt.Sprintf("[%s]%s[-]", t.Inactive, row.Activity))
+		}
+		u.compactTable.SetCell(r, 5, actCell)
+	}
 }
 
 func (u *UI) OpenJSONPreviewModal(json string) {
@@ -59,7 +146,27 @@ func (u *UI) CloseInitializingModal() {
 	u.pages.HidePage("initializingModal")
 }
 
-func (u *UI) OpenAboutModal() {
+func (u *UI) OpenAboutModal(version, githubURL string) {
+	t := u.theme
+	var b strings.Builder
+	fmt.Fprintf(&b, " [::b]Keybindings[-:-:-:-]\n\n")
+	fmt.Fprintf(&b, "  [%s]s[-]         Cycle station\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]t[-]         Cycle target\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]u[-]         Cycle up signal\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]d[-]         Cycle down signal\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]↑[-] [%s]↓[-]       Navigate dishes\n", t.Primary, t.Primary)
+	fmt.Fprintf(&b, "  [%s]b[-]         Bookmark dish\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]c[-]         Toggle compact view\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]j[-]         JSON preview\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]i[-]         Antenna specs\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]T[-]         Cycle theme\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]?[-]         This help\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]Esc[-]       Close modal\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]q[-]         Quit\n", t.Primary)
+	fmt.Fprintf(&b, "\n [::b]About[-:-:-:-]\n\n")
+	fmt.Fprintf(&b, "  Version  [%s]%s[-]\n", t.Secondary, version)
+	fmt.Fprintf(&b, "  GitHub   [%s:::%s]%s[-:-:-:-]\n", t.Secondary, githubURL, githubURL)
+	u.aboutView.content.SetText(b.String())
 	u.pages.ShowPage("aboutModal")
 }
 
@@ -68,22 +175,23 @@ func (u *UI) CloseAboutModal() {
 }
 
 func (u *UI) OpenDishSpecificationModal(spec model.DishSpecification) {
-	u.dishSpecsView.name.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.Name)))
-	u.dishSpecsView.tp.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.Type)))
-	u.dishSpecsView.diameter.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.Diameter)))
-	u.dishSpecsView.txFreq.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.TransmittersFrequency)))
-	u.dishSpecsView.rxFreq.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.ReceiversFrequency)))
-	u.dishSpecsView.txPower.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.TransmittersPower)))
-	u.dishSpecsView.precision.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.Precision)))
-	u.dishSpecsView.antennaSpeed.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.AntennaSpeed)))
-	u.dishSpecsView.totalWeight.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.TotalWeight)))
-	u.dishSpecsView.dishWeight.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.DishWeight)))
-	u.dishSpecsView.totalPanels.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.TotalPanels)))
-	u.dishSpecsView.surfaceArea.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.SurfaceArea)))
-	u.dishSpecsView.opWindResist.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.OperationalWindResistance)))
-	u.dishSpecsView.maxWindResist.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.WindResistance)))
-	u.dishSpecsView.builtIn.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.BuiltIn)))
-	u.dishSpecsView.url.SetText(fmt.Sprintf("[yellow]%s[-]", DashIfEmpty(spec.WebUrl)))
+	c := u.theme.Secondary
+	setSpecField(u.dishSpecsView.name, spec.Name, c)
+	setSpecField(u.dishSpecsView.tp, spec.Type, c)
+	setSpecField(u.dishSpecsView.diameter, spec.Diameter, c)
+	setSpecField(u.dishSpecsView.txFreq, spec.TransmittersFrequency, c)
+	setSpecField(u.dishSpecsView.rxFreq, spec.ReceiversFrequency, c)
+	setSpecField(u.dishSpecsView.txPower, spec.TransmittersPower, c)
+	setSpecField(u.dishSpecsView.precision, spec.Precision, c)
+	setSpecField(u.dishSpecsView.antennaSpeed, spec.AntennaSpeed, c)
+	setSpecField(u.dishSpecsView.totalWeight, spec.TotalWeight, c)
+	setSpecField(u.dishSpecsView.dishWeight, spec.DishWeight, c)
+	setSpecField(u.dishSpecsView.totalPanels, spec.TotalPanels, c)
+	setSpecField(u.dishSpecsView.surfaceArea, spec.SurfaceArea, c)
+	setSpecField(u.dishSpecsView.opWindResist, spec.OperationalWindResistance, c)
+	setSpecField(u.dishSpecsView.maxWindResist, spec.WindResistance, c)
+	setSpecField(u.dishSpecsView.builtIn, spec.BuiltIn, c)
+	setSpecField(u.dishSpecsView.url, spec.WebUrl, c)
 
 	u.pages.ShowPage("dishSpecificationModal")
 }
@@ -117,48 +225,64 @@ func (u *UI) UpdateTargetsTitleData(titles string) {
 }
 
 func (u *UI) UpdateUpSignalsTitleData(titles string) {
-	u.upSignalsView.SetTitle(fmt.Sprintf(" [red::b]↑[-:-:-:-] Up Signal: %s ", titles))
+	u.upSignalsView.SetTitle(fmt.Sprintf(" [%s::b]↑[-:-:-:-] Up Signal: %s ", u.theme.SignalUp, titles))
 }
 
 func (u *UI) UpdateDownSignalsTitleData(titles string) {
-	u.downSignalsView.SetTitle(fmt.Sprintf(" [green::b]↓[-:-:-:-] Down Signal: %s ", titles))
+	u.downSignalsView.SetTitle(fmt.Sprintf(" [%s::b]↓[-:-:-:-] Down Signal: %s ", u.theme.SignalDown, titles))
 }
 
 func (u *UI) UpdateStatusBar(params StatusBarParams) {
+	t := u.theme
+	// Left section: keybindings
 	if !params.DefaultStatus {
-		u.statusBar.SetText("[green](Esc)[-] close")
+		u.statusBarLeft.SetText(fmt.Sprintf("[%s](Esc)[-] close", t.Primary))
 	} else {
-		defaultText := "[green]s[-]tation, %t%u%p%s[green]j[-]SON, [green]?[-], [green]q[-]uit"
-
+		var b strings.Builder
+		fmt.Fprintf(&b, "[%s]s[-]tation, ", t.Primary)
 		if params.HasTargets {
-			defaultText = strings.Replace(defaultText, "%t", "[green]t[-]arget, ", 1)
-		} else {
-			defaultText = strings.Replace(defaultText, "%t", "", 1)
+			fmt.Fprintf(&b, "[%s]t[-]arget, ", t.Primary)
 		}
-
 		if params.HasUpSignals {
-			defaultText = strings.Replace(defaultText, "%u", "[green]u[-]p signal, ", 1)
-		} else {
-			defaultText = strings.Replace(defaultText, "%u", "", 1)
+			fmt.Fprintf(&b, "[%s]u[-]p signal, ", t.Primary)
 		}
-
 		if params.HasDownSignals {
-			defaultText = strings.Replace(defaultText, "%p", "[green]d[-]own signal, ", 1)
-		} else {
-			defaultText = strings.Replace(defaultText, "%p", "", 1)
+			fmt.Fprintf(&b, "[%s]d[-]own signal, ", t.Primary)
 		}
-
 		if params.HasAntennaSpec {
-			defaultText = strings.Replace(defaultText, "%s", "[green]i[-]nfo, ", 1)
-		} else {
-			defaultText = strings.Replace(defaultText, "%s", "", 1)
+			fmt.Fprintf(&b, "[%s]i[-]nfo, ", t.Primary)
 		}
-
-		u.statusBar.SetText(defaultText)
+		fmt.Fprintf(&b, "[%s]j[-]SON, [%s]?[-], [%s]q[-]uit", t.Primary, t.Primary, t.Primary)
+		u.statusBarLeft.SetText(b.String())
 	}
+
+	// Center section: error display or signal change notifications
+	if params.LastError != "" {
+		u.statusBarCenter.SetText(fmt.Sprintf("[%s]Error: %s[-]", t.Error, params.LastError))
+	} else if len(params.SignalChanges) > 0 {
+		u.statusBarCenter.SetText(fmt.Sprintf("[%s]%s[-]", t.Accent, strings.Join(params.SignalChanges, ", ")))
+	} else {
+		u.statusBarCenter.SetText("")
+	}
+
+	// Right section: connection indicator + last updated timestamp
+	var right strings.Builder
+	switch params.ConnStatus {
+	case "connected":
+		fmt.Fprintf(&right, "[%s]●[-] ", t.StatusConnected)
+	case "degraded":
+		fmt.Fprintf(&right, "[%s]●[-] ", t.StatusDegraded)
+	case "disconnected":
+		fmt.Fprintf(&right, "[%s]●[-] ", t.StatusError)
+	}
+	if params.LastUpdated != "" {
+		fmt.Fprintf(&right, "Updated: [%s]%s[-]", t.Secondary, params.LastUpdated)
+	}
+	u.statusBarRight.SetText(right.String())
 }
 
 func (u *UI) UpdateDetailsText(d model.Dish) {
+	t := u.theme
 	azimuth := "-"
 	elevation := "-"
 	wind := "-"
@@ -175,18 +299,19 @@ func (u *UI) UpdateDetailsText(d model.Dish) {
 		wind = fmt.Sprintf("%s km/h", d.WindSpeed)
 	}
 
-	u.uiDetails.antennaView.name.SetText(fmt.Sprintf("Name: [yellow]%s[-]", DashIfEmpty(d.FriendlyName)))
-	u.uiDetails.antennaView.typeT.SetText(fmt.Sprintf("Type: [yellow]%s[-]", DashIfEmpty(d.Type)))
-	u.uiDetails.antennaView.activity.SetText(fmt.Sprintf("Activity: [yellow]%s[-]", DashIfEmpty(d.Activity)))
-	u.uiDetails.antennaView.azimuth.SetText(fmt.Sprintf("Azimuth: [yellow]%s[-]", azimuth))
-	u.uiDetails.antennaView.elevation.SetText(fmt.Sprintf("Elevation: [yellow]%s[-]", elevation))
-	u.uiDetails.antennaView.wind.SetText(fmt.Sprintf("Wind: [yellow]%s[-]", wind))
+	u.uiDetails.antennaView.name.SetText(fmt.Sprintf("Name: [%s]%s[-]", t.Secondary, DashIfEmpty(d.FriendlyName)))
+	u.uiDetails.antennaView.typeT.SetText(fmt.Sprintf("Type: [%s]%s[-]", t.Secondary, DashIfEmpty(d.Type)))
+	u.uiDetails.antennaView.activity.SetText(fmt.Sprintf("Activity: [%s]%s[-]", t.Secondary, DashIfEmpty(d.Activity)))
+	u.uiDetails.antennaView.azimuth.SetText(fmt.Sprintf("Azimuth: [%s]%s[-]", t.Secondary, azimuth))
+	u.uiDetails.antennaView.elevation.SetText(fmt.Sprintf("Elevation: [%s]%s[-]", t.Secondary, elevation))
+	u.uiDetails.antennaView.wind.SetText(fmt.Sprintf("Wind: [%s]%s[-]", t.Secondary, wind))
 }
 
 func (u *UI) UpdateUpSignalData(upSignal model.UpSignal) {
+	t := u.theme
 	source := "-"
 	powerTrans := "-"
-	isActive := "[red]inactive[-]"
+	isActive := fmt.Sprintf("[%s]inactive[-]", t.Error)
 	freqBand := DefaultIfEmpty(upSignal.Band, "-")
 	signalType := DefaultIfEmpty(upSignal.SignalType, "-")
 
@@ -199,26 +324,27 @@ func (u *UI) UpdateUpSignalData(upSignal model.UpSignal) {
 	}
 
 	if upSignal.IsActive {
-		isActive = "[green]active[-]"
+		isActive = fmt.Sprintf("[%s]active[-]", t.Primary)
 	}
 
 	if upSignal == (model.UpSignal{}) {
-		u.upSignalsView.SetBorderColor(tcell.ColorRed)
+		u.upSignalsView.SetBorderColor(t.ErrorBorder)
 	} else {
 		u.upSignalsView.SetBorderColor(tcell.ColorDefault)
 	}
 
-	u.uiDetails.upSignalView.source.SetText(fmt.Sprintf("Source: [yellow]%s[-]", source))
+	u.uiDetails.upSignalView.source.SetText(fmt.Sprintf("Source: [%s]%s[-]", t.Secondary, source))
 	u.uiDetails.upSignalView.isActive.SetText(fmt.Sprintf("Is active: %s", isActive))
-	u.uiDetails.upSignalView.signalType.SetText(fmt.Sprintf("Signal type: [yellow]%s[-]", signalType))
-	u.uiDetails.upSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [yellow]%s[-]", freqBand))
-	u.uiDetails.upSignalView.powerTransmitted.SetText(fmt.Sprintf("Power transmitted: [yellow]%s[-]", powerTrans))
+	u.uiDetails.upSignalView.signalType.SetText(fmt.Sprintf("Signal type: [%s]%s[-]", t.Secondary, signalType))
+	u.uiDetails.upSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [%s]%s[-]", t.Secondary, freqBand))
+	u.uiDetails.upSignalView.powerTransmitted.SetText(fmt.Sprintf("Power transmitted: [%s]%s[-]", t.Secondary, powerTrans))
 }
 
 func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
+	t := u.theme
 	source := "-"
 	powerReceived := "-"
-	isActive := "[red]inactive[-]"
+	isActive := fmt.Sprintf("[%s]inactive[-]", t.Error)
 	dataRate := "-"
 	freqBand := DefaultIfEmpty(downSignal.Band, "-")
 	signalType := DefaultIfEmpty(downSignal.SignalType, "-")
@@ -232,7 +358,7 @@ func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
 	}
 
 	if downSignal.IsActive {
-		isActive = "[green]active[-]"
+		isActive = fmt.Sprintf("[%s]active[-]", t.Primary)
 	}
 
 	if len(downSignal.DataRate) > 0 {
@@ -255,17 +381,17 @@ func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
 	}
 
 	if downSignal == (model.DownSignal{}) {
-		u.downSignalsView.SetBorderColor(tcell.ColorRed)
+		u.downSignalsView.SetBorderColor(t.ErrorBorder)
 	} else {
 		u.downSignalsView.SetBorderColor(tcell.ColorDefault)
 	}
 
-	u.uiDetails.downSignalView.source.SetText(fmt.Sprintf("Source: [yellow]%s[-]", source))
+	u.uiDetails.downSignalView.source.SetText(fmt.Sprintf("Source: [%s]%s[-]", t.Secondary, source))
 	u.uiDetails.downSignalView.isActive.SetText(fmt.Sprintf("Is active: %s", isActive))
-	u.uiDetails.downSignalView.signalType.SetText(fmt.Sprintf("Signal type: [yellow]%s[-]", signalType))
-	u.uiDetails.downSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [yellow]%s[-]", freqBand))
-	u.uiDetails.downSignalView.dataRate.SetText(fmt.Sprintf("Data rate: [yellow]%s[-]", dataRate))
-	u.uiDetails.downSignalView.powerReceived.SetText(fmt.Sprintf("Power received: [yellow]%s[-]", powerReceived))
+	u.uiDetails.downSignalView.signalType.SetText(fmt.Sprintf("Signal type: [%s]%s[-]", t.Secondary, signalType))
+	u.uiDetails.downSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [%s]%s[-]", t.Secondary, freqBand))
+	u.uiDetails.downSignalView.dataRate.SetText(fmt.Sprintf("Data rate: [%s]%s[-]", t.Secondary, dataRate))
+	u.uiDetails.downSignalView.powerReceived.SetText(fmt.Sprintf("Power received: [%s]%s[-]", t.Secondary, powerReceived))
 }
 
 func (u *UI) UpdateTargetData(target model.Target) {
@@ -319,12 +445,13 @@ func (u *UI) UpdateTargetData(target model.Target) {
 	}
 
 	if target == (model.Target{}) || (target.UplegRange == "-1" && target.Rtlt == "-1" && target.Spacecraft == (model.Spacecraft{})) {
-		u.targetsView.SetBorderColor(tcell.ColorRed)
+		u.targetsView.SetBorderColor(u.theme.ErrorBorder)
 	} else {
 		u.targetsView.SetBorderColor(tcell.ColorDefault)
 	}
 
-	u.uiDetails.targetView.spacecraftName.SetText(fmt.Sprintf("Spacecraft: [yellow]%s[-]", name))
-	u.uiDetails.targetView.upleg.SetText(fmt.Sprintf("Range: [yellow]%s[-]", upLeg))
-	u.uiDetails.targetView.rtlt.SetText(fmt.Sprintf("Round-trip light time: [yellow]%s[-]", rtlt))
+	t := u.theme
+	u.uiDetails.targetView.spacecraftName.SetText(fmt.Sprintf("Spacecraft: [%s]%s[-]", t.Secondary, name))
+	u.uiDetails.targetView.upleg.SetText(fmt.Sprintf("Range: [%s]%s[-]", t.Secondary, upLeg))
+	u.uiDetails.targetView.rtlt.SetText(fmt.Sprintf("Round-trip light time: [%s]%s[-]", t.Secondary, rtlt))
 }

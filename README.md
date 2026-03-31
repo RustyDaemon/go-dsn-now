@@ -8,15 +8,6 @@ The NASA Deep Space Network (DSN) is a global system of large antennas and commu
 
 ![Screenshot 1](_assets/_shot1.png)
 
-<details>
-<summary>More screenshots</summary>
-<p align="center">
-  <img src="_assets/_shot2.png" width="33%" alt="">
-  <img src="_assets/_shot3.png" width="33%" alt="">
-  <img src="_assets/_shot4.png" width="33%" alt="">
-</p>
-</details>
-
 ## Features
 
 - **Live monitoring with real-time, detailed data.** Data updates are almost instantaneous.
@@ -24,48 +15,40 @@ The NASA Deep Space Network (DSN) is a global system of large antennas and commu
 - **Display up and down signals for each station.** You can observe the signal strength, frequency, data rate, and modulation type.
 - **Interactive.** You can select a station, antenna, current target, and both types of signals.
 - **Informative.** You can access detailed information about the station, antenna, target, and signals.
+- **Themes.** Cycle through 4 built-in color themes: dark, solarized, nord, and light.
+- **Bookmarks.** Mark dishes of interest with a star indicator. Bookmarks persist across sessions.
+- **Compact view.** Toggle between a detailed view and a compact table overview of all dishes.
+- **Signal notifications.** Get notified in the status bar when signals are acquired or lost.
+- **Connection indicator.** A colored status indicator shows whether the data feed is connected, degraded, or disconnected.
+
+## Keyboard Shortcuts
+
+| Key     | Action                          |
+| ------- | ------------------------------- |
+| `s`     | Cycle through stations          |
+| `t`     | Cycle through targets           |
+| `u`     | Cycle through up signals        |
+| `d`     | Cycle through down signals      |
+| `↑` `↓` | Navigate dishes list            |
+| `b`     | Toggle bookmark on current dish |
+| `c`     | Toggle compact view             |
+| `T`     | Cycle through themes            |
+| `j`     | Show JSON preview               |
+| `i`     | Show antenna specifications     |
+| `?`     | Show help                       |
+| `Esc`   | Close modal                     |
+| `q`     | Quit                            |
 
 ## Installation
 
-- Prerequisites: `Go`
-- Run the following command to install the application:
+0. Requires [Go](https://go.dev/) to be installed.
+1. Install the application by running: `go install github.com/RustyDaemon/go-dsn-now@latest`
+2. Run the application with `go-dsn-now`.
 
-```bash
-go install github.com/RustyDaemon/go-dsn-now@latest
-```
-
-- Run the application:
-
-```bash
-go-dsn-now
-```
-
-> If you get `command not found: go-dsn-now` error, do the following:
->
-> 1. Run `go env GOPATH` to get the `GOPATH` environment variables like `/user/go`.
-> 2. Append `/bin/go-dsn-now` like this `/user/go/bin/go-dsn-now` and execute.
-
-## Keymaps
-
-| Keymap   | Description                        |
-| -------- | ---------------------------------- |
-| `↑`, `↓` | Select antenna                     |
-| `s`      | Select station                     |
-| `t`      | Switch target \*                   |
-| `d`      | Switch Down signal \*              |
-| `u`      | Switch Up signal \*                |
-| `i`      | See detailed antenna specification |
-| `j`      | See JSON structured data           |
-| `ESC`    | Close a popup \*                   |
-| `?`      | See about information              |
-| `q`      | Quit the application               |
-
-`*` - available only if the respective data is available.
+> **Note:** If you get `command not found`, make sure `$GOPATH/bin` is in your `PATH`. You can find your `GOPATH` by running `go env GOPATH`.
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+Licensed under [Apache 2.0](LICENSE). Third-party dependencies are subject to their own licenses.
 
-The project uses other libraries and frameworks that are licensed under different licenses. Please refer to the respective libraries for their licenses.
-
-[NASA Deep Space Network Now](https://eyes.nasa.gov/dsn/dsn.html) data is provided (non-direct) by NASA and is subject to their terms and conditions. This project is not affiliated with NASA or any of its subsidiaries. The data is provided and used for educational and informational purposes only.
+[NASA Deep Space Network Now](https://eyes.nasa.gov/dsn/dsn.html) data is sourced indirectly from NASA and used solely for educational and informational purposes. This project is not affiliated with NASA or any of its subsidiaries.

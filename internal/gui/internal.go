@@ -1,17 +1,23 @@
 package gui
 
 import (
-	"fmt"
-	"github.com/RustyDaemon/go-dsn-now/internal/data"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-func (u *UI) buildStatusBar() *tview.TextView {
-	statusBar := NewTextView("").SetTextAlign(tview.AlignCenter)
-	statusBar.SetBorder(true)
+func (u *UI) buildStatusBar() *tview.Flex {
+	u.statusBarLeft = NewTextView("")
+	u.statusBarCenter = NewTextView("").SetTextAlign(tview.AlignCenter)
+	u.statusBarRight = NewTextView("").SetTextAlign(tview.AlignRight)
 
-	return statusBar
+	flex := tview.NewFlex().
+		AddItem(u.statusBarLeft, 0, 3, false).
+		AddItem(u.statusBarCenter, 0, 2, false).
+		AddItem(u.statusBarRight, 0, 2, false)
+	flex.SetBorder(true)
+
+	u.statusBarFlex = flex
+	return flex
 }
 
 func buildDishesList(onListItemChanged func(index int)) *tview.List {
@@ -32,18 +38,6 @@ func (u *UI) buildDishesMenu() *tview.Flex {
 		AddItem(u.buildStationView(), 0, 1, false)
 
 	return dishesMenu
-}
-
-func (u *UI) buildLayout(dishesMenu, detailsPane tview.Primitive) *tview.Flex {
-	layout := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(tview.NewFlex().
-			AddItem(dishesMenu, 0, 1, true). //or fixedSize 15
-			AddItem(detailsPane, 0, 5, false),
-			0, 1, true).
-		AddItem(u.statusBar, 3, 1, false)
-
-	return layout
 }
 
 func (u *UI) buildTargetsView() *tview.Flex {
@@ -192,21 +186,17 @@ func (u *UI) buildStationView() *tview.Flex {
 }
 
 func buildInitializingModal() tview.Primitive {
-	modalInitializingContent := NewTextView("[green]Initializing[-] please wait[::l]...[-:-:-:-]").
+	content := NewTextView("[green]Initializing[-] please wait[::l]...[-:-:-:-]").
 		SetTextAlign(tview.AlignCenter)
-	modalInitializingContent.SetBorder(true).SetTitleAlign(tview.AlignCenter)
+	content.SetBorder(true).SetTitleAlign(tview.AlignCenter)
 
-	modal := func(p tview.Primitive, width, height int) tview.Primitive {
-		return tview.NewFlex().
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(p, height, 1, true).
-				AddItem(nil, 0, 1, false), width, 1, true).
-			AddItem(nil, 0, 1, false)
-	}
-
-	return modal(modalInitializingContent, 40, 3)
+			AddItem(content, 3, 1, true).
+			AddItem(nil, 0, 1, false), 40, 1, true).
+		AddItem(nil, 0, 1, false)
 }
 
 func (u *UI) buildJSONPreviewModal() tview.Primitive {
@@ -224,20 +214,9 @@ func (u *UI) buildJSONPreviewModal() tview.Primitive {
 		SetTitleAlign(tview.AlignCenter).SetTitle(" JSON Preview ").
 		SetTitleColor(tcell.ColorYellow)
 
-	modal := func(p tview.Primitive) tview.Primitive {
-		return tview.NewFlex().
-			AddItem(nil, 3, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(p, 0, 5, true).
-				AddItem(nil, 0, 1, false),
-				0, 4, true).
-			AddItem(nil, 3, 1, false)
-	}
-
 	u.jsonPreview = modalPreviewContent
 
-	return modal(modalPreviewContent)
+	return wrapInModal(modalPreviewContent, 3, 0, 4, 1)
 }
 
 func (u *UI) buildDishSpecsModal() tview.Primitive {
@@ -369,17 +348,6 @@ func (u *UI) buildDishSpecsModal() tview.Primitive {
 		SetTitleColor(tcell.ColorYellow).SetTitleAlign(tview.AlignCenter).
 		SetBorderColor(tcell.ColorYellow)
 
-	modal := func(p tview.Primitive) tview.Primitive {
-		return tview.NewFlex().
-			AddItem(nil, 3, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 1, 1, false).
-				AddItem(p, 0, 6, true).
-				AddItem(nil, 3, 1, false),
-				0, 4, true).
-			AddItem(nil, 3, 1, false)
-	}
-
 	u.dishSpecsView.name = nameValueView
 	u.dishSpecsView.tp = typeValueView
 	u.dishSpecsView.diameter = diameterValueView
@@ -397,46 +365,16 @@ func (u *UI) buildDishSpecsModal() tview.Primitive {
 	u.dishSpecsView.builtIn = builtInValueView
 	u.dishSpecsView.url = urlValueView
 
-	return modal(view)
+	return wrapInModal(view, 3, 1, 4, 1)
 }
 
 func (u *UI) buildAboutModal() tview.Primitive {
-	view := tview.NewFlex()
-
-	versionView := NewTextView("Version:")
-	versionValueView := NewTextView(fmt.Sprintf("[yellow]%s[-]", data.AppVersion))
-
-	githubView := NewTextView("GitHub:")
-	githubViewView := NewTextView(fmt.Sprintf("[yellow:::%s]%s[-:-:-:-]", data.AppGithubUrl, data.AppGithubUrl))
-
-	dataView := tview.NewFlex().SetDirection(tview.FlexRow)
-	dataView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(versionView, 0, 1, false).
-		AddItem(versionValueView, 0, 2, false),
-		0, 1, false)
-	dataView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(githubView, 0, 1, false).
-		AddItem(githubViewView, 0, 2, false),
-		0, 1, false)
-	view.AddItem(dataView, 0, 1, false)
-
-	view.SetBorder(true).SetTitle(" About ").
+	contentView := NewTextView("")
+	contentView.SetBorder(true).SetTitle(" Help ").
 		SetTitleColor(tcell.ColorYellow).SetTitleAlign(tview.AlignCenter).
 		SetBorderColor(tcell.ColorYellow)
 
-	modal := func(p tview.Primitive) tview.Primitive {
-		return tview.NewFlex().
-			AddItem(nil, 3, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 3, false).
-				AddItem(p, 4, 1, true).
-				AddItem(nil, 0, 3, false),
-				0, 3, true).
-			AddItem(nil, 3, 1, false)
-	}
+	u.aboutView.content = contentView
 
-	u.aboutView.version = versionValueView
-	u.aboutView.url = githubViewView
-
-	return modal(view)
+	return wrapInModal(contentView, 3, 1, 4, 1)
 }

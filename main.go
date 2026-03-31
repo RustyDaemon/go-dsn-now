@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
+	"github.com/RustyDaemon/go-dsn-now/internal/config"
 	"github.com/RustyDaemon/go-dsn-now/internal/data"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/gui"
@@ -19,38 +22,50 @@ import (
 )
 
 var (
-	app     *tview.Application
-	ui      *gui.UI
-	appData *model.AppData
+	app        *tview.Application
+	ui         *gui.UI
+	appData    *model.AppData
+	cfg        *config.Config
+	httpClient *http.Client
+	cancel     context.CancelFunc
 )
 
 func main() {
+	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
+
+	ctx, cancelFunc := signal.NotifyContext(context.Background(), os.Interrupt)
+	cancel = cancelFunc
+	defer cancel()
+
+	cfg = config.Load()
+	httpClient = data.NewHTTPClient(cfg)
+
 	appData = model.NewAppData()
+	appData.Bookmarks = data.LoadBookmarks()
 
 	app = tview.NewApplication()
-	ui = gui.NewUI()
+	ui = gui.NewUI(cfg.Theme)
 	appUI := ui.BuildAppUI(onListItemChanged)
 
 	updateStatusBar(true)
 
-	interrupt := make(chan os.Signal, 1)
 	chanConfig := make(chan response.DSNConfig)
 	chanDSNData := make(chan response.DSN)
 	chanError := make(chan error)
 
-	signal.Notify(interrupt, os.Interrupt)
-
-	go data.LoadDSNConfig(chanConfig, chanError)
+	go data.LoadDSNConfig(ctx, httpClient, cfg, chanConfig, chanError)
 
 	select {
 	case appData.DSNConfig = <-chanConfig:
 	case err := <-chanError:
 		log.Fatal(err)
+	case <-ctx.Done():
+		return
 	}
 
 	data.MapConfigToFullData(appData.DSNConfig, &appData.FullData)
 
-	go runDSNDataLoader(chanDSNData, chanError, interrupt)
+	go runDSNDataLoader(ctx, chanDSNData, chanError)
 
 	go func() {
 		for {
@@ -58,7 +73,13 @@ func main() {
 			case dsnData := <-chanDSNData:
 				onDataReceived(dsnData)
 			case err := <-chanError:
-				log.Fatal(err)
+				app.QueueUpdateDraw(func() {
+					appData.LastError = err.Error()
+					appData.ConsecutiveErrors++
+					updateStatusBar(true)
+				})
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -93,7 +114,7 @@ func setKeybindings() {
 				updateUpSignalSelection()
 			case 'd':
 				updateDownSignalSelection()
-			case 'p':
+			case 'j':
 				if !appData.IsReady {
 					break
 				}
@@ -107,17 +128,50 @@ func setKeybindings() {
 				appData.IsSpecsShown = true
 				updateStatusBar(false)
 				showDishSpecs()
+			case 'b':
+				if !appData.IsReady {
+					break
+				}
+				if dish, ok := appData.GetSelectedDish(); ok {
+					if appData.Bookmarks[dish.Name] {
+						delete(appData.Bookmarks, dish.Name)
+					} else {
+						appData.Bookmarks[dish.Name] = true
+					}
+					data.SaveBookmarks(appData.Bookmarks)
+					updateDishesList()
+				}
+			case 'c':
+				if !appData.IsReady {
+					break
+				}
+				appData.CompactView = !appData.CompactView
+				focus := ui.ToggleCompactView(appData.CompactView)
+				app.SetFocus(focus)
+				if appData.CompactView {
+					updateCompactView()
+				}
+			case 'T':
+				ui.CycleTheme()
+				if appData.IsReady {
+					populateStationsData()
+					updateDishesList()
+					if appData.CompactView {
+						updateCompactView()
+					}
+				}
 			case '?':
 				if !appData.IsReady {
 					break
 				}
 				appData.IsAboutShown = true
 				updateStatusBar(false)
-				ui.OpenAboutModal()
+				ui.OpenAboutModal(cfg.AppVersion, cfg.AppGithubURL)
 			}
 		}
 
 		if event.Rune() == 'q' {
+			cancel()
 			app.Stop()
 		}
 
@@ -144,8 +198,22 @@ func updateStatusBar(defaultStatus bool) {
 		return
 	}
 
+	connStatus := "connected"
+	if appData.ConsecutiveErrors >= 3 {
+		connStatus = "disconnected"
+	} else if appData.ConsecutiveErrors >= 1 {
+		connStatus = "degraded"
+	}
+
 	params := gui.StatusBarParams{
 		DefaultStatus: defaultStatus,
+		LastError:     appData.LastError,
+		ConnStatus:    connStatus,
+		SignalChanges: appData.SignalChanges,
+	}
+
+	if !appData.LastUpdated.IsZero() {
+		params.LastUpdated = appData.LastUpdated.Format("15:04:05")
 	}
 
 	if !params.DefaultStatus {
@@ -173,8 +241,11 @@ func updateStatusBar(defaultStatus bool) {
 }
 
 func onDataReceived(dsnData response.DSN) {
-	data.MapDataToFullData(dsnData, &appData.FullData)
 	app.QueueUpdateDraw(func() {
+		data.MapDataToFullData(dsnData, &appData.FullData)
+		appData.LastError = ""
+		appData.ConsecutiveErrors = 0
+		appData.LastUpdated = time.Now()
 		if appData.FullData.Stations == nil {
 			return
 		}
@@ -188,16 +259,20 @@ func onDataReceived(dsnData response.DSN) {
 			appData.SelectedStationIdx = 0
 		}
 
+		appData.DetectSignalChanges()
 		populateStationsData()
 		updateDishesList()
+		if appData.CompactView {
+			updateCompactView()
+		}
 	})
 }
 
-func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os.Signal) {
+func runDSNDataLoader(ctx context.Context, result chan response.DSN, ce chan error) {
 	chanDSNData := make(chan response.DSN)
 	chanError := make(chan error)
 
-	go data.LoadDSNData(chanDSNData, chanError)
+	go data.LoadDSNData(ctx, httpClient, cfg, chanDSNData, chanError)
 
 	select {
 	case dsnData := <-chanDSNData:
@@ -205,32 +280,50 @@ func runDSNDataLoader(result chan response.DSN, ce chan error, interrupt chan os
 	case err := <-chanError:
 		ce <- err
 		return
-	case <-interrupt:
-		ce <- fmt.Errorf("interrupted")
+	case <-ctx.Done():
 		return
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(cfg.RefreshInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			go data.LoadDSNData(chanDSNData, chanError)
+			go data.LoadDSNData(ctx, httpClient, cfg, chanDSNData, chanError)
 
 			select {
 			case dsnData := <-chanDSNData:
 				result <- dsnData
 			case err := <-chanError:
 				ce <- err
-			case <-interrupt:
-				ce <- fmt.Errorf("interrupted")
+			case <-ctx.Done():
+				return
 			}
-		case <-interrupt:
-			ce <- fmt.Errorf("interrupted")
+		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func cycleSelection(currentIdx *int, count int) {
+	*currentIdx++
+	if *currentIdx >= count {
+		*currentIdx = 0
+	}
+}
+
+func buildIndexTitles(count, selectedIdx int) string {
+	t := ui.Theme()
+	var b strings.Builder
+	for i := 0; i < count; i++ {
+		if i == selectedIdx {
+			fmt.Fprintf(&b, "[%s::b][%d][-:-:-:-]", t.Primary, i+1)
+		} else {
+			fmt.Fprintf(&b, "[%d]", i+1)
+		}
+	}
+	return b.String()
 }
 
 func populateStationsData() {
@@ -245,25 +338,23 @@ func populateStationsData() {
 		return
 	}
 
-	text := ""
+	t := ui.Theme()
+	var b strings.Builder
 
 	for i, station := range stations {
 		if i == appData.SelectedStationIdx {
-			stationName := fmt.Sprintf("[green::b]%s[-:-:-:-]", station.Name)
-			text = fmt.Sprintf("%s%s %s", text, stationName, strings.ToLower(station.Flag))
-			info := fmt.Sprintf("[green::b]%s[-:-:-:-]", station.FriendlyName)
-
-			ui.UpdateSelectedStation(info)
+			fmt.Fprintf(&b, "[%s::b]%s[-:-:-:-] %s", t.Primary, station.Name, strings.ToLower(station.Flag))
+			ui.UpdateSelectedStation(fmt.Sprintf("[%s::b]%s[-:-:-:-]", t.Primary, station.FriendlyName))
 		} else {
-			text += fmt.Sprintf("%s %s", station.Name, strings.ToLower(station.Flag))
+			fmt.Fprintf(&b, "%s %s", station.Name, strings.ToLower(station.Flag))
 		}
 
 		if i < len(stations)-1 {
-			text += "\n"
+			b.WriteString("\n")
 		}
 	}
 
-	ui.UpdateStationsList(text)
+	ui.UpdateStationsList(b.String())
 }
 
 func updateDownSignalsTitleData() {
@@ -272,27 +363,17 @@ func updateDownSignalsTitleData() {
 		return
 	}
 
-	if downSignals == nil || len(downSignals) == 0 {
+	if len(downSignals) == 0 {
 		ui.UpdateDownSignalsTitleData("No signal")
 		ui.UpdateDownSignalData(model.DownSignal{})
 		return
 	}
 
-	titles := ""
-
 	if appData.SelectedDownSignalIdx >= len(downSignals) {
 		appData.SelectedDownSignalIdx = 0
 	}
 
-	for i := range downSignals {
-		if i == appData.SelectedDownSignalIdx {
-			titles += fmt.Sprintf("[green::b][%d][-:-:-:-]", i+1)
-		} else {
-			titles += fmt.Sprintf("[%d]", i+1)
-		}
-	}
-
-	ui.UpdateDownSignalsTitleData(titles)
+	ui.UpdateDownSignalsTitleData(buildIndexTitles(len(downSignals), appData.SelectedDownSignalIdx))
 	ui.UpdateDownSignalData(downSignals[appData.SelectedDownSignalIdx])
 }
 
@@ -302,27 +383,17 @@ func updateUpSignalsTitleData() {
 		return
 	}
 
-	if upSignals == nil || len(upSignals) == 0 {
+	if len(upSignals) == 0 {
 		ui.UpdateUpSignalsTitleData("No signal")
 		ui.UpdateUpSignalData(model.UpSignal{})
 		return
 	}
 
-	titles := ""
-
-	if appData.SelectedUpSignalIdx < 0 && len(upSignals) > 0 {
+	if appData.SelectedUpSignalIdx < 0 {
 		appData.SelectedUpSignalIdx = 0
 	}
 
-	for i := range upSignals {
-		if i == appData.SelectedUpSignalIdx {
-			titles += fmt.Sprintf("[green::b][%d][-:-:-:-]", i+1)
-		} else {
-			titles += fmt.Sprintf("[%d]", i+1)
-		}
-	}
-
-	ui.UpdateUpSignalsTitleData(titles)
+	ui.UpdateUpSignalsTitleData(buildIndexTitles(len(upSignals), appData.SelectedUpSignalIdx))
 	ui.UpdateUpSignalData(upSignals[appData.SelectedUpSignalIdx])
 }
 
@@ -332,33 +403,32 @@ func updateTargetsData() {
 		return
 	}
 
-	if targets == nil || len(targets) == 0 {
+	if len(targets) == 0 {
 		ui.UpdateTargetsTitleData("No target")
 		ui.UpdateTargetData(model.Target{})
 		return
 	}
 
-	titles := ""
-
 	if appData.SelectedTargetIdx >= len(targets) {
 		appData.SelectedTargetIdx = 0
 	}
 
+	t := ui.Theme()
+	var b strings.Builder
 	for i, target := range targets {
 		if i == appData.SelectedTargetIdx {
-			titles += fmt.Sprintf("[green::b]%s[-:-:-:-]", target.Name)
+			fmt.Fprintf(&b, "[%s::b]%s[-:-:-:-]", t.Primary, target.Name)
 		} else {
-			titles += target.Name
+			b.WriteString(target.Name)
 		}
-
 		if i < len(targets)-1 {
-			titles += " - "
+			b.WriteString(" - ")
 		} else {
-			titles += " "
+			b.WriteString(" ")
 		}
 	}
 
-	ui.UpdateTargetsTitleData(titles)
+	ui.UpdateTargetsTitleData(b.String())
 	ui.UpdateTargetData(targets[appData.SelectedTargetIdx])
 }
 
@@ -368,16 +438,11 @@ func updateDownSignalSelection() {
 	}
 
 	downSignals, ok := appData.GetDownSignals()
-	if !ok || downSignals == nil || len(downSignals) == 0 {
+	if !ok || len(downSignals) == 0 {
 		return
 	}
 
-	appData.SelectedDownSignalIdx += 1
-
-	if appData.SelectedDownSignalIdx >= len(downSignals) {
-		appData.SelectedDownSignalIdx = 0
-	}
-
+	cycleSelection(&appData.SelectedDownSignalIdx, len(downSignals))
 	updateDownSignalsTitleData()
 }
 
@@ -387,16 +452,11 @@ func updateUpSignalSelection() {
 	}
 
 	upSignals, ok := appData.GetUpSignals()
-	if !ok || upSignals == nil || len(upSignals) == 0 {
+	if !ok || len(upSignals) == 0 {
 		return
 	}
 
-	appData.SelectedUpSignalIdx += 1
-
-	if appData.SelectedUpSignalIdx >= len(upSignals) {
-		appData.SelectedUpSignalIdx = 0
-	}
-
+	cycleSelection(&appData.SelectedUpSignalIdx, len(upSignals))
 	updateUpSignalsTitleData()
 }
 
@@ -406,16 +466,11 @@ func updateTargetSelection() {
 	}
 
 	targets, ok := appData.GetTargets()
-	if !ok || targets == nil || len(targets) == 0 {
+	if !ok || len(targets) == 0 {
 		return
 	}
 
-	appData.SelectedTargetIdx += 1
-
-	if appData.SelectedTargetIdx >= len(targets) {
-		appData.SelectedTargetIdx = 0
-	}
-
+	cycleSelection(&appData.SelectedTargetIdx, len(targets))
 	updateTargetsData()
 }
 
@@ -459,6 +514,27 @@ func showDishSpecs() {
 	ui.OpenDishSpecificationModal(dish.Specs)
 }
 
+func updateCompactView() {
+	var rows []gui.CompactRow
+	for _, station := range appData.FullData.Stations {
+		for _, dish := range station.Dishes {
+			target := "-"
+			if len(dish.Targets) > 0 && dish.Targets[0].Spacecraft.FriendlyName != "" {
+				target = dish.Targets[0].Spacecraft.FriendlyName
+			}
+			rows = append(rows, gui.CompactRow{
+				Station:     station.FriendlyName,
+				Dish:        dish.FriendlyName,
+				Target:      target,
+				UpSignals:   dish.CountWorkingUpSignals(),
+				DownSignals: dish.CountWorkingDownSignals(),
+				Activity:    dish.Activity,
+			})
+		}
+	}
+	ui.UpdateCompactTable(rows)
+}
+
 func updateStationSelection() {
 	if !appData.IsReady {
 		return
@@ -485,32 +561,35 @@ func updateDishesList() {
 
 	selectedStation := appData.FullData.Stations[appData.SelectedStationIdx]
 
+	dt := ui.Theme()
 	for _, dish := range selectedStation.Dishes {
-		upSignalText, downSignalText, nothing := "", "", ""
+		var b strings.Builder
+
+		if appData.Bookmarks[dish.Name] {
+			fmt.Fprintf(&b, "[%s]★[-] ", dt.Accent)
+		}
 
 		workingDownSignals := dish.CountWorkingDownSignals()
-		for i := 0; i < workingDownSignals; i++ {
-			downSignalText += "[green::b]↓[-:-:-:-]"
-		}
-
 		workingUpSignals := dish.CountWorkingUpSignals()
-		for i := 0; i < workingUpSignals; i++ {
-			upSignalText += "[red::b]↑[-:-:-:-]"
-		}
-
 		workingTargets := dish.CountWorkingTargets()
+
 		if workingDownSignals == 0 && workingUpSignals == 0 && workingTargets == 0 {
-			nothing = "[red]✘[-]"
-			dish.FriendlyName = fmt.Sprintf("[red]%s[-]", dish.FriendlyName)
+			fmt.Fprintf(&b, "[%s]%s[-] ", dt.Inactive, dish.FriendlyName)
+			fmt.Fprintf(&b, "[%s]✘[-]", dt.Inactive)
+		} else if workingDownSignals > 0 && workingUpSignals > 0 && workingTargets > 0 {
+			fmt.Fprintf(&b, "[%s]%s[-] ", dt.Primary, dish.FriendlyName)
+		} else {
+			fmt.Fprintf(&b, "%s ", dish.FriendlyName)
 		}
 
-		if workingDownSignals > 0 && workingUpSignals > 0 && workingTargets > 0 {
-			dish.FriendlyName = fmt.Sprintf("[green]%s[-]", dish.FriendlyName)
+		for i := 0; i < workingUpSignals; i++ {
+			fmt.Fprintf(&b, "[%s::b]↑[-:-:-:-]", dt.SignalUp)
+		}
+		for i := 0; i < workingDownSignals; i++ {
+			fmt.Fprintf(&b, "[%s::b]↓[-:-:-:-]", dt.SignalDown)
 		}
 
-		text := fmt.Sprintf("%s %s%s%s", dish.FriendlyName, upSignalText, downSignalText, nothing)
-
-		ui.AddNewDish(text)
+		ui.AddNewDish(b.String())
 	}
 
 	appData.SelectedDishIdx = currDishSelected

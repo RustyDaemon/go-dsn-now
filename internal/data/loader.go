@@ -1,22 +1,33 @@
 package data
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 	"net/http"
 	"time"
+
+	"github.com/RustyDaemon/go-dsn-now/internal/config"
+	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 )
 
-var (
-	DSNConfigUrl = "https://eyes.nasa.gov/apps/dsn-now/config.xml"
-	DSNDataUrl   = "https://eyes.nasa.gov/dsn/data/dsn.xml?r=%v"
-)
+func NewHTTPClient(cfg *config.Config) *http.Client {
+	return &http.Client{
+		Timeout: cfg.HTTPTimeout,
+	}
+}
 
-func LoadDSNConfig(result chan response.DSNConfig, ce chan error) {
-	resp, err := http.Get(DSNConfigUrl)
+func LoadDSNConfig(ctx context.Context, client *http.Client, cfg *config.Config, result chan response.DSNConfig, ce chan error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", cfg.DSNConfigURL, nil)
 	if err != nil {
 		ce <- err
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		ce <- err
+		return
 	}
 	defer resp.Body.Close()
 
@@ -24,17 +35,26 @@ func LoadDSNConfig(result chan response.DSNConfig, ce chan error) {
 	err = xml.NewDecoder(resp.Body).Decode(&dsnConfig)
 	if err != nil {
 		ce <- err
+		return
 	}
 
 	result <- dsnConfig
 }
 
-func LoadDSNData(result chan response.DSN, ce chan error) {
+func LoadDSNData(ctx context.Context, client *http.Client, cfg *config.Config, result chan response.DSN, ce chan error) {
 	r := time.Now().UnixMilli() / 5000
-	url := fmt.Sprintf(DSNDataUrl, r)
-	resp, err := http.Get(url)
+	url := fmt.Sprintf(cfg.DSNDataURL, r)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		ce <- err
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		ce <- err
+		return
 	}
 	defer resp.Body.Close()
 
@@ -42,6 +62,7 @@ func LoadDSNData(result chan response.DSN, ce chan error) {
 	err = xml.NewDecoder(resp.Body).Decode(&dsn)
 	if err != nil {
 		ce <- err
+		return
 	}
 
 	result <- dsn

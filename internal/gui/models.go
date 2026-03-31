@@ -8,9 +8,21 @@ type StatusBarParams struct {
 	HasUpSignals   bool
 	HasDownSignals bool
 	HasAntennaSpec bool
+	LastUpdated    string
+	LastError      string
+	ConnStatus     string // "connected", "degraded", "disconnected"
+	SignalChanges  []string
+}
+
+func GetTheme(name string) *Theme {
+	if t, ok := Themes[name]; ok {
+		return t
+	}
+	return DarkTheme
 }
 
 type UI struct {
+	theme *Theme
 	dishesList      *tview.List
 	stationsList    *tview.TextView
 	selectedStation *tview.TextView
@@ -19,10 +31,17 @@ type UI struct {
 	jsonPreview     *tview.TextArea
 	dishSpecsView   *uiDishSpec
 	aboutView       *uiAbout
-	statusBar       *tview.TextView
+	statusBarFlex   *tview.Flex
+	statusBarLeft   *tview.TextView
+	statusBarCenter *tview.TextView
+	statusBarRight  *tview.TextView
 	targetsView     *tview.Flex
 	upSignalsView   *tview.Flex
 	downSignalsView *tview.Flex
+	compactTable    *tview.Table
+	mainContent     *tview.Flex
+	compactContent  *tview.Flex
+	layoutContainer *tview.Flex
 }
 
 type uiDishSpec struct {
@@ -84,6 +103,14 @@ type uiDownSignalView struct {
 }
 
 type uiAbout struct {
-	version *tview.TextView
-	url     *tview.TextView
+	content *tview.TextView
+}
+
+type CompactRow struct {
+	Station    string
+	Dish       string
+	Target     string
+	UpSignals  int
+	DownSignals int
+	Activity   string
 }

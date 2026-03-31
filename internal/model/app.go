@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 )
 
@@ -16,6 +18,18 @@ type AppData struct {
 	IsPreviewShown        bool
 	IsSpecsShown          bool
 	IsAboutShown          bool
+	LastError             string
+	LastUpdated           time.Time
+	ConsecutiveErrors     int
+	CompactView           bool
+	Bookmarks             map[string]bool // dish name -> bookmarked
+	PrevSignalCounts      map[string]signalCount // dish name -> signal counts from last update
+	SignalChanges         []string               // recent signal change notifications
+}
+
+type signalCount struct {
+	Up   int
+	Down int
 }
 
 func NewAppData() *AppData {
@@ -31,6 +45,8 @@ func NewAppData() *AppData {
 		IsPreviewShown:        false,
 		IsSpecsShown:          false,
 		IsAboutShown:          false,
+		PrevSignalCounts:      make(map[string]signalCount),
+		Bookmarks:             make(map[string]bool),
 	}
 }
 
@@ -74,6 +90,32 @@ func (data *AppData) GetTargets() (res []Target, ok bool) {
 	}
 
 	return dish.Targets, true
+}
+
+func (data *AppData) DetectSignalChanges() {
+	data.SignalChanges = nil
+	for i := range data.FullData.Stations {
+		for j := range data.FullData.Stations[i].Dishes {
+			dish := &data.FullData.Stations[i].Dishes[j]
+			up := dish.CountWorkingUpSignals()
+			down := dish.CountWorkingDownSignals()
+
+			prev, exists := data.PrevSignalCounts[dish.Name]
+			if exists {
+				if up > prev.Up {
+					data.SignalChanges = append(data.SignalChanges, dish.FriendlyName+" +↑")
+				} else if up < prev.Up {
+					data.SignalChanges = append(data.SignalChanges, dish.FriendlyName+" -↑")
+				}
+				if down > prev.Down {
+					data.SignalChanges = append(data.SignalChanges, dish.FriendlyName+" +↓")
+				} else if down < prev.Down {
+					data.SignalChanges = append(data.SignalChanges, dish.FriendlyName+" -↓")
+				}
+			}
+			data.PrevSignalCounts[dish.Name] = signalCount{Up: up, Down: down}
+		}
+	}
 }
 
 func (data *AppData) HasAntennaSpecs() bool {
