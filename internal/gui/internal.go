@@ -175,6 +175,7 @@ func (u *UI) buildStationView() *tview.Flex {
 
 	selectedStation := NewTextView("").SetTextAlign(tview.AlignCenter)
 	stationsList := NewTextView("").SetTextAlign(tview.AlignCenter)
+	stationsList.SetRegions(true)
 
 	view.AddItem(selectedStation, 2, 1, false)
 	view.AddItem(stationsList, 0, 1, false)

@@ -3,15 +3,16 @@ package gui
 import "github.com/rivo/tview"
 
 type StatusBarParams struct {
-	DefaultStatus  bool
-	HasTargets     bool
-	HasUpSignals   bool
-	HasDownSignals bool
-	HasAntennaSpec bool
-	LastUpdated    string
-	LastError      string
-	ConnStatus     string // "connected", "degraded", "disconnected"
-	SignalChanges  []string
+	DefaultStatus   bool
+	HasTargets      bool
+	HasUpSignals    bool
+	HasDownSignals  bool
+	HasAntennaSpec  bool
+	LastUpdated     string
+	LastError       string
+	ConnStatus      string // "connected", "degraded", "disconnected"
+	SignalChanges   []string
+	RefreshInterval string
 }
 
 func GetTheme(name string) *Theme {

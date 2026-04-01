@@ -2,9 +2,12 @@ package gui
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/rivo/tview"
 )
+
+var tviewTagRegex = regexp.MustCompile(`\[("[^"]*"|[^\[\]]*)\]`)
 
 func DefaultIfEmpty(value, defaultValue string) string {
 	if len(value) == 0 {
@@ -41,4 +44,8 @@ func wrapInModal(p tview.Primitive, hPad, vPad, hWeight, vWeight int) tview.Prim
 
 func setSpecField(view *tview.TextView, value string, color string) {
 	view.SetText(fmt.Sprintf("[%s]%s[-]", color, DashIfEmpty(value)))
+}
+
+func stripTviewTags(s string) string {
+	return tviewTagRegex.ReplaceAllString(s, "")
 }

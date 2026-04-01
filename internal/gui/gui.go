@@ -157,9 +157,11 @@ func (u *UI) OpenAboutModal(version, githubURL string) {
 	fmt.Fprintf(&b, "  [%s]↑[-] [%s]↓[-]       Navigate dishes\n", t.Primary, t.Primary)
 	fmt.Fprintf(&b, "  [%s]b[-]         Bookmark dish\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]c[-]         Toggle compact view\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]y[-]         Copy to clipboard\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]j[-]         JSON preview\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]i[-]         Antenna specs\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]T[-]         Cycle theme\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]+[-] [%s]-[-]       Adjust refresh interval\n", t.Primary, t.Primary)
 	fmt.Fprintf(&b, "  [%s]?[-]         This help\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]Esc[-]       Close modal\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]q[-]         Quit\n", t.Primary)
@@ -278,6 +280,9 @@ func (u *UI) UpdateStatusBar(params StatusBarParams) {
 	if params.LastUpdated != "" {
 		fmt.Fprintf(&right, "Updated: [%s]%s[-]", t.Secondary, params.LastUpdated)
 	}
+	if params.RefreshInterval != "" {
+		fmt.Fprintf(&right, " | [%s]%s[-]", t.Secondary, params.RefreshInterval)
+	}
 	u.statusBarRight.SetText(right.String())
 }
 
@@ -392,6 +397,75 @@ func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
 	u.uiDetails.downSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [%s]%s[-]", t.Secondary, freqBand))
 	u.uiDetails.downSignalView.dataRate.SetText(fmt.Sprintf("Data rate: [%s]%s[-]", t.Secondary, dataRate))
 	u.uiDetails.downSignalView.powerReceived.SetText(fmt.Sprintf("Power received: [%s]%s[-]", t.Secondary, powerReceived))
+}
+
+func (u *UI) SetStatusBarMessage(msg string) {
+	t := u.theme
+	u.statusBarCenter.SetText(fmt.Sprintf("[%s]%s[-]", t.Primary, msg))
+}
+
+func (u *UI) GetVisibleContent(compact bool) string {
+	var b strings.Builder
+
+	if compact {
+		rows := u.compactTable.GetRowCount()
+		cols := u.compactTable.GetColumnCount()
+		for r := 0; r < rows; r++ {
+			for c := 0; c < cols; c++ {
+				cell := u.compactTable.GetCell(r, c)
+				text := tview.TranslateANSI(cell.Text)
+				text = stripTviewTags(text)
+				if c > 0 {
+					b.WriteString("\t")
+				}
+				b.WriteString(text)
+			}
+			b.WriteString("\n")
+		}
+		return b.String()
+	}
+
+	// Detailed view
+	b.WriteString("=== Antenna Information ===\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.name.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.typeT.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.activity.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.azimuth.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.elevation.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.antennaView.wind.GetText(false)) + "\n")
+
+	b.WriteString("\n=== Target ===\n")
+	b.WriteString(stripTviewTags(u.uiDetails.targetView.spacecraftName.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.targetView.upleg.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.targetView.rtlt.GetText(false)) + "\n")
+
+	b.WriteString("\n=== Up Signal ===\n")
+	b.WriteString(stripTviewTags(u.uiDetails.upSignalView.source.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.upSignalView.isActive.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.upSignalView.signalType.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.upSignalView.freqBand.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.upSignalView.powerTransmitted.GetText(false)) + "\n")
+
+	b.WriteString("\n=== Down Signal ===\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.source.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.isActive.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.signalType.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.freqBand.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.dataRate.GetText(false)) + "\n")
+	b.WriteString(stripTviewTags(u.uiDetails.downSignalView.powerReceived.GetText(false)) + "\n")
+
+	return b.String()
+}
+
+func (u *UI) SetStationClickedFunc(fn func(index int)) {
+	u.stationsList.SetHighlightedFunc(func(added, removed, remaining []string) {
+		if len(added) > 0 {
+			idx, err := strconv.Atoi(added[0])
+			if err == nil {
+				fn(idx)
+			}
+		}
+	})
 }
 
 func (u *UI) UpdateTargetData(target model.Target) {

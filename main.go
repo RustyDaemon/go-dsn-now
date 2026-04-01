@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
+
 	"github.com/RustyDaemon/go-dsn-now/internal/config"
 	"github.com/RustyDaemon/go-dsn-now/internal/data"
 
@@ -22,12 +24,14 @@ import (
 )
 
 var (
-	app        *tview.Application
-	ui         *gui.UI
-	appData    *model.AppData
-	cfg        *config.Config
-	httpClient *http.Client
-	cancel     context.CancelFunc
+	app               *tview.Application
+	ui                *gui.UI
+	appData           *model.AppData
+	cfg               *config.Config
+	httpClient        *http.Client
+	cancel            context.CancelFunc
+	refreshIntervalCh = make(chan time.Duration, 1)
+	appSettings       *data.Settings
 )
 
 func main() {
@@ -38,6 +42,26 @@ func main() {
 	defer cancel()
 
 	cfg = config.Load()
+
+	appSettings = data.LoadSettings()
+	if appSettings != nil {
+		if appSettings.RefreshIntervalSeconds > 0 {
+			interval := time.Duration(appSettings.RefreshIntervalSeconds) * time.Second
+			if interval < 10*time.Second {
+				interval = 10 * time.Second
+			}
+			cfg.RefreshInterval = interval
+		}
+		if appSettings.Theme != "" {
+			cfg.Theme = appSettings.Theme
+		}
+	} else {
+		appSettings = &data.Settings{
+			RefreshIntervalSeconds: int(cfg.RefreshInterval.Seconds()),
+			Theme:                  cfg.Theme,
+		}
+	}
+
 	httpClient = data.NewHTTPClient(cfg)
 
 	appData = model.NewAppData()
@@ -46,6 +70,16 @@ func main() {
 	app = tview.NewApplication()
 	ui = gui.NewUI(cfg.Theme)
 	appUI := ui.BuildAppUI(onListItemChanged)
+
+	ui.SetStationClickedFunc(func(index int) {
+		if !appData.IsReady || index < 0 || index >= len(appData.FullData.Stations) {
+			return
+		}
+		appData.SelectedStationIdx = index
+		appData.SelectedDishIdx = 0
+		populateStationsData()
+		updateDishesList()
+	})
 
 	updateStatusBar(true)
 
@@ -152,7 +186,9 @@ func setKeybindings() {
 					updateCompactView()
 				}
 			case 'T':
-				ui.CycleTheme()
+				newTheme := ui.CycleTheme()
+				appSettings.Theme = newTheme
+				data.SaveSettings(appSettings)
 				if appData.IsReady {
 					populateStationsData()
 					updateDishesList()
@@ -160,6 +196,39 @@ func setKeybindings() {
 						updateCompactView()
 					}
 				}
+			case '+', '=':
+				newInterval := cfg.RefreshInterval + 5*time.Second
+				cfg.RefreshInterval = newInterval
+				appSettings.RefreshIntervalSeconds = int(newInterval.Seconds())
+				data.SaveSettings(appSettings)
+				refreshIntervalCh <- newInterval
+				updateStatusBar(true)
+			case '-':
+				newInterval := cfg.RefreshInterval - 5*time.Second
+				if newInterval < 10*time.Second {
+					newInterval = 10 * time.Second
+				}
+				cfg.RefreshInterval = newInterval
+				appSettings.RefreshIntervalSeconds = int(newInterval.Seconds())
+				data.SaveSettings(appSettings)
+				refreshIntervalCh <- newInterval
+				updateStatusBar(true)
+			case 'y':
+				if !appData.IsReady {
+					break
+				}
+				text := ui.GetVisibleContent(appData.CompactView)
+				if err := clipboard.WriteAll(text); err != nil {
+					ui.SetStatusBarMessage("Clipboard unavailable")
+				} else {
+					ui.SetStatusBarMessage("Copied to clipboard")
+				}
+				go func() {
+					time.Sleep(2 * time.Second)
+					app.QueueUpdateDraw(func() {
+						updateStatusBar(true)
+					})
+				}()
 			case '?':
 				if !appData.IsReady {
 					break
@@ -206,10 +275,11 @@ func updateStatusBar(defaultStatus bool) {
 	}
 
 	params := gui.StatusBarParams{
-		DefaultStatus: defaultStatus,
-		LastError:     appData.LastError,
-		ConnStatus:    connStatus,
-		SignalChanges: appData.SignalChanges,
+		DefaultStatus:   defaultStatus,
+		LastError:       appData.LastError,
+		ConnStatus:      connStatus,
+		SignalChanges:   appData.SignalChanges,
+		RefreshInterval: fmt.Sprintf("%ds", int(cfg.RefreshInterval.Seconds())),
 	}
 
 	if !appData.LastUpdated.IsZero() {
@@ -300,6 +370,8 @@ func runDSNDataLoader(ctx context.Context, result chan response.DSN, ce chan err
 			case <-ctx.Done():
 				return
 			}
+		case newInterval := <-refreshIntervalCh:
+			ticker.Reset(newInterval)
 		case <-ctx.Done():
 			return
 		}
@@ -342,12 +414,14 @@ func populateStationsData() {
 	var b strings.Builder
 
 	for i, station := range stations {
+		fmt.Fprintf(&b, `["%d"]`, i)
 		if i == appData.SelectedStationIdx {
 			fmt.Fprintf(&b, "[%s::b]%s[-:-:-:-] %s", t.Primary, station.Name, strings.ToLower(station.Flag))
 			ui.UpdateSelectedStation(fmt.Sprintf("[%s::b]%s[-:-:-:-]", t.Primary, station.FriendlyName))
 		} else {
 			fmt.Fprintf(&b, "%s %s", station.Name, strings.ToLower(station.Flag))
 		}
+		fmt.Fprintf(&b, `[""]`)
 
 		if i < len(stations)-1 {
 			b.WriteString("\n")
