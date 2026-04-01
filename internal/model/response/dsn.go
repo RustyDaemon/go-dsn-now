@@ -15,20 +15,19 @@ type Station struct {
 	TimeZoneOffset string `xml:"timeZoneOffset,attr"`
 }
 
-// GetStationFlag temporary disabled - flag emojis as they shift the text 🇪🇸 🇺🇸 🇦🇺
 func (s *Station) GetStationFlag() string {
 	name := s.FriendlyName
 
 	if strings.EqualFold(name, "madrid") {
-		return "[ESP[]"
+		return "\U0001F1EA\U0001F1F8"
 	}
 
 	if strings.EqualFold(name, "goldstone") {
-		return "[USA[]"
+		return "\U0001F1FA\U0001F1F8"
 	}
 
 	if strings.EqualFold(name, "canberra") {
-		return "[AUS[]"
+		return "\U0001F1E6\U0001F1FA"
 	}
 
 	return ""

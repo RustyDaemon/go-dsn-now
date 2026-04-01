@@ -157,6 +157,7 @@ func (u *UI) OpenAboutModal(version, githubURL string) {
 	fmt.Fprintf(&b, "  [%s]↑[-] [%s]↓[-]       Navigate dishes\n", t.Primary, t.Primary)
 	fmt.Fprintf(&b, "  [%s]b[-]         Bookmark dish\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]c[-]         Toggle compact view\n", t.Primary)
+	fmt.Fprintf(&b, "  [%s]S[-]         Cycle compact sort\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]y[-]         Copy to clipboard\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]j[-]         JSON preview\n", t.Primary)
 	fmt.Fprintf(&b, "  [%s]i[-]         Antenna specs\n", t.Primary)
@@ -220,6 +221,10 @@ func (u *UI) ClearDishesList() {
 
 func (u *UI) SetSelectedDish(index int) {
 	u.dishesList.SetCurrentItem(index)
+}
+
+func (u *UI) UpdateDishesListTitle(title string) {
+	u.dishesList.SetTitle(title).SetTitleAlign(tview.AlignCenter)
 }
 
 func (u *UI) UpdateTargetsTitleData(titles string) {
@@ -397,6 +402,18 @@ func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
 	u.uiDetails.downSignalView.freqBand.SetText(fmt.Sprintf("Frequency band: [%s]%s[-]", t.Secondary, freqBand))
 	u.uiDetails.downSignalView.dataRate.SetText(fmt.Sprintf("Data rate: [%s]%s[-]", t.Secondary, dataRate))
 	u.uiDetails.downSignalView.powerReceived.SetText(fmt.Sprintf("Power received: [%s]%s[-]", t.Secondary, powerReceived))
+}
+
+func (u *UI) UpdateActiveDuration(text string) {
+	u.uiDetails.antennaView.activeDuration.SetText(text)
+}
+
+func (u *UI) UpdateClock(text string) {
+	u.statusBarClock.SetText(text)
+}
+
+func (u *UI) SetCompactTableTitle(sortLabel string) {
+	u.compactTable.SetTitle(fmt.Sprintf(" All Dishes (compact) | Sort: %s ", sortLabel))
 }
 
 func (u *UI) SetStatusBarMessage(msg string) {

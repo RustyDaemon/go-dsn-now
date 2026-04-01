@@ -9,11 +9,13 @@ func (u *UI) buildStatusBar() *tview.Flex {
 	u.statusBarLeft = NewTextView("")
 	u.statusBarCenter = NewTextView("").SetTextAlign(tview.AlignCenter)
 	u.statusBarRight = NewTextView("").SetTextAlign(tview.AlignRight)
+	u.statusBarClock = NewTextView("").SetTextAlign(tview.AlignRight)
 
 	flex := tview.NewFlex().
-		AddItem(u.statusBarLeft, 0, 3, false).
+		AddItem(u.statusBarLeft, 0, 4, false).
 		AddItem(u.statusBarCenter, 0, 2, false).
-		AddItem(u.statusBarRight, 0, 2, false)
+		AddItem(u.statusBarRight, 0, 2, false).
+		AddItem(u.statusBarClock, 16, 0, false)
 	flex.SetBorder(true)
 
 	u.statusBarFlex = flex
@@ -146,7 +148,12 @@ func (u *UI) buildDetailsView(target, upSignal, downSignal tview.Primitive) *tvi
 		AddItem(elevationView, 0, 1, false).
 		AddItem(windView, 0, 1, false),
 		2, 1, false)
-	antennaInfoView.AddItem(activityView, 1, 1, false)
+	activeDurationView := NewTextView("").SetTextAlign(tview.AlignRight)
+
+	antennaInfoView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(activityView, 0, 1, false).
+		AddItem(activeDurationView, 0, 1, false),
+		1, 1, false)
 	antennaInfoView.SetBorder(true).SetTitle(" Antenna information ")
 
 	view.AddItem(antennaInfoView, 6, 1, false)
@@ -165,6 +172,7 @@ func (u *UI) buildDetailsView(target, upSignal, downSignal tview.Primitive) *tvi
 	u.uiDetails.antennaView.azimuth = azimuthView
 	u.uiDetails.antennaView.elevation = elevationView
 	u.uiDetails.antennaView.wind = windView
+	u.uiDetails.antennaView.activeDuration = activeDurationView
 
 	return view
 }

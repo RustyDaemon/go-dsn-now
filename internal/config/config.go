@@ -18,7 +18,7 @@ func Load() *Config {
 		DSNDataURL:      "https://eyes.nasa.gov/dsn/data/dsn.xml?r=%v",
 		RefreshInterval: 10 * time.Second,
 		HTTPTimeout:     10 * time.Second,
-		AppVersion:      "0.0.8",
+		AppVersion:      "0.0.9",
 		AppGithubURL:    "https://github.com/RustyDaemon/go-dsn-now",
 		Theme:           "dark",
 	}

@@ -9,6 +9,7 @@ import (
 type Settings struct {
 	RefreshIntervalSeconds int    `json:"refreshIntervalSeconds"`
 	Theme                  string `json:"theme"`
+	LastStation            string `json:"lastStation,omitempty"`
 }
 
 func SettingsPath() string {
