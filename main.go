@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"time"
 
@@ -77,6 +78,8 @@ func main() {
 		}
 		appData.SelectedStationIdx = index
 		appData.SelectedDishIdx = 0
+		appSettings.LastStation = appData.FullData.Stations[index].FriendlyName
+		data.SaveSettings(appSettings)
 		populateStationsData()
 		updateDishesList()
 	})
@@ -120,6 +123,22 @@ func main() {
 
 	setKeybindings()
 
+	go func() {
+		clockTicker := time.NewTicker(1 * time.Second)
+		defer clockTicker.Stop()
+		for {
+			select {
+			case <-clockTicker.C:
+				app.QueueUpdateDraw(func() {
+					t := ui.Theme()
+					ui.UpdateClock(fmt.Sprintf("UTC [%s]%s[-]", t.Secondary, time.Now().UTC().Format("15:04:05")))
+				})
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	if err := app.SetRoot(appUI, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
@@ -127,6 +146,7 @@ func main() {
 
 func onListItemChanged(index int) {
 	updateDishDetails(index)
+	updateDishesListTitle()
 	updateTargetsData()
 	updateUpSignalsTitleData()
 	updateDownSignalsTitleData()
@@ -185,6 +205,12 @@ func setKeybindings() {
 				if appData.CompactView {
 					updateCompactView()
 				}
+			case 'S':
+				if !appData.IsReady || !appData.CompactView {
+					break
+				}
+				appData.CycleCompactSortMode()
+				updateCompactView()
 			case 'T':
 				newTheme := ui.CycleTheme()
 				appSettings.Theme = newTheme
@@ -327,6 +353,14 @@ func onDataReceived(dsnData response.DSN) {
 
 		if appData.SelectedStationIdx < 0 {
 			appData.SelectedStationIdx = 0
+			if appSettings.LastStation != "" {
+				for i, station := range appData.FullData.Stations {
+					if strings.EqualFold(station.FriendlyName, appSettings.LastStation) {
+						appData.SelectedStationIdx = i
+						break
+					}
+				}
+			}
 		}
 
 		appData.DetectSignalChanges()
@@ -416,10 +450,10 @@ func populateStationsData() {
 	for i, station := range stations {
 		fmt.Fprintf(&b, `["%d"]`, i)
 		if i == appData.SelectedStationIdx {
-			fmt.Fprintf(&b, "[%s::b]%s[-:-:-:-] %s", t.Primary, station.Name, strings.ToLower(station.Flag))
+			fmt.Fprintf(&b, "[%s::b]%s[-:-:-:-] %s", t.Primary, station.Name, station.Flag)
 			ui.UpdateSelectedStation(fmt.Sprintf("[%s::b]%s[-:-:-:-]", t.Primary, station.FriendlyName))
 		} else {
-			fmt.Fprintf(&b, "%s %s", station.Name, strings.ToLower(station.Flag))
+			fmt.Fprintf(&b, "%s %s", station.Name, station.Flag)
 		}
 		fmt.Fprintf(&b, `[""]`)
 
@@ -559,6 +593,7 @@ func updateDishDetails(index int) {
 	dish := selectedStation.Dishes[index]
 
 	ui.UpdateDetailsText(dish)
+
 }
 
 func showPreview() {
@@ -606,7 +641,36 @@ func updateCompactView() {
 			})
 		}
 	}
+	switch appData.CompactSortMode {
+	case model.CompactSortByActivity:
+		sort.SliceStable(rows, func(i, j int) bool {
+			return rows[i].Activity < rows[j].Activity
+		})
+	case model.CompactSortBySignalCount:
+		sort.SliceStable(rows, func(i, j int) bool {
+			return (rows[i].UpSignals + rows[i].DownSignals) > (rows[j].UpSignals + rows[j].DownSignals)
+		})
+	case model.CompactSortByTarget:
+		sort.SliceStable(rows, func(i, j int) bool {
+			return rows[i].Target < rows[j].Target
+		})
+	}
+
+	ui.SetCompactTableTitle(appData.CompactSortModeLabel())
 	ui.UpdateCompactTable(rows)
+}
+
+func updateDishesListTitle() {
+	if appData.SelectedStationIdx < 0 {
+		return
+	}
+	selectedStation := appData.FullData.Stations[appData.SelectedStationIdx]
+	total := len(selectedStation.Dishes)
+	if total > 0 {
+		ui.UpdateDishesListTitle(fmt.Sprintf("Antennas (%d/%d)", appData.SelectedDishIdx+1, total))
+	} else {
+		ui.UpdateDishesListTitle("Antennas")
+	}
 }
 
 func updateStationSelection() {
@@ -621,6 +685,8 @@ func updateStationSelection() {
 	}
 
 	appData.SelectedDishIdx = 0
+	appSettings.LastStation = appData.FullData.Stations[appData.SelectedStationIdx].FriendlyName
+	data.SaveSettings(appSettings)
 	populateStationsData()
 	updateDishesList()
 }

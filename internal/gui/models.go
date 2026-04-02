@@ -36,6 +36,7 @@ type UI struct {
 	statusBarLeft   *tview.TextView
 	statusBarCenter *tview.TextView
 	statusBarRight  *tview.TextView
+	statusBarClock  *tview.TextView
 	targetsView     *tview.Flex
 	upSignalsView   *tview.Flex
 	downSignalsView *tview.Flex
@@ -72,12 +73,12 @@ type uiDetails struct {
 }
 
 type uiAntennaView struct {
-	name      *tview.TextView
-	typeT     *tview.TextView
-	activity  *tview.TextView
-	azimuth   *tview.TextView
-	elevation *tview.TextView
-	wind      *tview.TextView
+	name           *tview.TextView
+	typeT          *tview.TextView
+	activity       *tview.TextView
+	azimuth        *tview.TextView
+	elevation      *tview.TextView
+	wind           *tview.TextView
 }
 
 type uiTargetView struct {

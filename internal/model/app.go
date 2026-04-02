@@ -22,9 +22,38 @@ type AppData struct {
 	LastUpdated           time.Time
 	ConsecutiveErrors     int
 	CompactView           bool
+	CompactSortMode       CompactSortMode
 	Bookmarks             map[string]bool // dish name -> bookmarked
 	PrevSignalCounts      map[string]signalCount // dish name -> signal counts from last update
 	SignalChanges         []string               // recent signal change notifications
+	DishActiveSince       map[string]time.Time   // dish name -> time when signals first became active
+}
+
+type CompactSortMode int
+
+const (
+	CompactSortDefault CompactSortMode = iota
+	CompactSortByActivity
+	CompactSortBySignalCount
+	CompactSortByTarget
+	compactSortModeCount
+)
+
+func (data *AppData) CycleCompactSortMode() {
+	data.CompactSortMode = (data.CompactSortMode + 1) % compactSortModeCount
+}
+
+func (data *AppData) CompactSortModeLabel() string {
+	switch data.CompactSortMode {
+	case CompactSortByActivity:
+		return "Activity"
+	case CompactSortBySignalCount:
+		return "Signals"
+	case CompactSortByTarget:
+		return "Target"
+	default:
+		return "Default"
+	}
 }
 
 type signalCount struct {
@@ -47,6 +76,7 @@ func NewAppData() *AppData {
 		IsAboutShown:          false,
 		PrevSignalCounts:      make(map[string]signalCount),
 		Bookmarks:             make(map[string]bool),
+		DishActiveSince:       make(map[string]time.Time),
 	}
 }
 
@@ -114,9 +144,18 @@ func (data *AppData) DetectSignalChanges() {
 				}
 			}
 			data.PrevSignalCounts[dish.Name] = signalCount{Up: up, Down: down}
+
+			if up+down > 0 {
+				if _, tracked := data.DishActiveSince[dish.Name]; !tracked {
+					data.DishActiveSince[dish.Name] = time.Now()
+				}
+			} else {
+				delete(data.DishActiveSince, dish.Name)
+			}
 		}
 	}
 }
+
 
 func (data *AppData) HasAntennaSpecs() bool {
 	dish, ok := data.GetSelectedDish()
