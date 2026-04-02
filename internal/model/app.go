@@ -15,9 +15,6 @@ type AppData struct {
 	SelectedDownSignalIdx int
 	FullData              FullData
 	DSNConfig             response.DSNConfig
-	IsPreviewShown        bool
-	IsSpecsShown          bool
-	IsAboutShown          bool
 	LastError             string
 	LastUpdated           time.Time
 	ConsecutiveErrors     int
@@ -71,18 +68,12 @@ func NewAppData() *AppData {
 		SelectedDownSignalIdx: 0,
 		DSNConfig:             response.DSNConfig{},
 		FullData:              FullData{},
-		IsPreviewShown:        false,
-		IsSpecsShown:          false,
-		IsAboutShown:          false,
 		PrevSignalCounts:      make(map[string]signalCount),
 		Bookmarks:             make(map[string]bool),
 		DishActiveSince:       make(map[string]time.Time),
 	}
 }
 
-func (data *AppData) IsNoModalShown() bool {
-	return !data.IsPreviewShown && !data.IsSpecsShown && !data.IsAboutShown
-}
 
 func (data *AppData) GetSelectedDish() (res Dish, ok bool) {
 	if data.SelectedStationIdx < 0 || data.SelectedDishIdx < 0 {
