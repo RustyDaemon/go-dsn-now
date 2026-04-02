@@ -148,11 +148,8 @@ func (u *UI) buildDetailsView(target, upSignal, downSignal tview.Primitive) *tvi
 		AddItem(elevationView, 0, 1, false).
 		AddItem(windView, 0, 1, false),
 		2, 1, false)
-	activeDurationView := NewTextView("").SetTextAlign(tview.AlignRight)
-
 	antennaInfoView.AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(activityView, 0, 1, false).
-		AddItem(activeDurationView, 0, 1, false),
+		AddItem(activityView, 0, 1, false),
 		1, 1, false)
 	antennaInfoView.SetBorder(true).SetTitle(" Antenna information ")
 
@@ -172,8 +169,6 @@ func (u *UI) buildDetailsView(target, upSignal, downSignal tview.Primitive) *tvi
 	u.uiDetails.antennaView.azimuth = azimuthView
 	u.uiDetails.antennaView.elevation = elevationView
 	u.uiDetails.antennaView.wind = windView
-	u.uiDetails.antennaView.activeDuration = activeDurationView
-
 	return view
 }
 

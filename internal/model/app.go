@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
@@ -157,23 +156,6 @@ func (data *AppData) DetectSignalChanges() {
 	}
 }
 
-func (data *AppData) GetDishActiveDuration(dishName string) string {
-	since, ok := data.DishActiveSince[dishName]
-	if !ok {
-		return ""
-	}
-	d := time.Since(since)
-	hours := int(d.Hours())
-	minutes := int(d.Minutes()) % 60
-	seconds := int(d.Seconds()) % 60
-	if hours > 0 {
-		return fmt.Sprintf("%dh %dm %ds", hours, minutes, seconds)
-	}
-	if minutes > 0 {
-		return fmt.Sprintf("%dm %ds", minutes, seconds)
-	}
-	return fmt.Sprintf("%ds", seconds)
-}
 
 func (data *AppData) HasAntennaSpecs() bool {
 	dish, ok := data.GetSelectedDish()

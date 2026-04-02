@@ -79,7 +79,6 @@ type uiAntennaView struct {
 	azimuth        *tview.TextView
 	elevation      *tview.TextView
 	wind           *tview.TextView
-	activeDuration *tview.TextView
 }
 
 type uiTargetView struct {

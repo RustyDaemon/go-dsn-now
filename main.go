@@ -594,12 +594,6 @@ func updateDishDetails(index int) {
 
 	ui.UpdateDetailsText(dish)
 
-	duration := appData.GetDishActiveDuration(dish.Name)
-	if duration != "" {
-		ui.UpdateActiveDuration(fmt.Sprintf("Active for: [%s]%s[-]", ui.Theme().Secondary, duration))
-	} else {
-		ui.UpdateActiveDuration(fmt.Sprintf("Active for: [%s]-[-]", ui.Theme().Inactive))
-	}
 }
 
 func showPreview() {

@@ -404,10 +404,6 @@ func (u *UI) UpdateDownSignalData(downSignal model.DownSignal) {
 	u.uiDetails.downSignalView.powerReceived.SetText(fmt.Sprintf("Power received: [%s]%s[-]", t.Secondary, powerReceived))
 }
 
-func (u *UI) UpdateActiveDuration(text string) {
-	u.uiDetails.antennaView.activeDuration.SetText(text)
-}
-
 func (u *UI) UpdateClock(text string) {
 	u.statusBarClock.SetText(text)
 }
