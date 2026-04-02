@@ -1,0 +1,214 @@
+package components
+
+import (
+	"fmt"
+	"strings"
+
+	"encoding/json"
+
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/RustyDaemon/go-dsn-now/internal/model"
+	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
+)
+
+type ModalType int
+
+const (
+	ModalNone ModalType = iota
+	ModalHelp
+	ModalJSONPreview
+	ModalDishSpecs
+)
+
+type Modal struct {
+	viewport viewport.Model
+	width    int
+	height   int
+	title    string
+}
+
+func NewModal() Modal {
+	vp := viewport.New(0, 0)
+	return Modal{viewport: vp}
+}
+
+func (m *Modal) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+	vpW := w * 3 / 4
+	vpH := h * 3 / 4
+	if vpW < 40 {
+		vpW = 40
+	}
+	if vpH < 10 {
+		vpH = 10
+	}
+	m.viewport.Width = vpW - 6
+	m.viewport.Height = vpH - 6
+}
+
+func (m *Modal) SetContent(title, content string) {
+	m.title = title
+	m.viewport.SetContent(content)
+	m.viewport.GotoTop()
+}
+
+func (m *Modal) Update(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	m.viewport, cmd = m.viewport.Update(msg)
+	return cmd
+}
+
+func (m Modal) View() string {
+	vpW := m.width * 3 / 4
+	vpH := m.height * 3 / 4
+	if vpW < 40 {
+		vpW = 40
+	}
+	if vpH < 10 {
+		vpH = 10
+	}
+
+	content := m.viewport.View()
+	title := style.ModalTitleStyle.Render(m.title)
+
+	// Build modal box manually with double borders
+	innerWidth := vpW - 2
+	if innerWidth < 4 {
+		innerWidth = 4
+	}
+
+	bc := lipgloss.NewStyle().Foreground(style.ColorBorderModal)
+	titleRendered := " " + title + " "
+	titleVisualWidth := lipgloss.Width(titleRendered)
+	topFillLen := innerWidth - 1 - titleVisualWidth
+	if topFillLen < 0 {
+		topFillLen = 0
+	}
+
+	topLine := bc.Render("╔") + bc.Render("═") + titleRendered + bc.Render(strings.Repeat("═", topFillLen)) + bc.Render("╗")
+	bottomLine := bc.Render("╚") + bc.Render(strings.Repeat("═", innerWidth)) + bc.Render("╝")
+
+	contentStyle := lipgloss.NewStyle().
+		Width(innerWidth - 4).
+		Height(vpH - 4).
+		PaddingLeft(2).
+		PaddingRight(2)
+
+	styledContent := contentStyle.Render(content)
+	contentLines := strings.Split(styledContent, "\n")
+
+	var bodyLines []string
+	for _, line := range contentLines {
+		lineWidth := lipgloss.Width(line)
+		pad := innerWidth - lineWidth
+		if pad < 0 {
+			pad = 0
+		}
+		bodyLines = append(bodyLines, bc.Render("║")+line+strings.Repeat(" ", pad)+bc.Render("║"))
+	}
+
+	lines := make([]string, 0, len(bodyLines)+2)
+	lines = append(lines, topLine)
+	lines = append(lines, bodyLines...)
+	lines = append(lines, bottomLine)
+
+	box := strings.Join(lines, "\n")
+
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		box,
+		lipgloss.WithWhitespaceBackground(style.ColorBgDeep),
+	)
+}
+
+// BuildJSONContent formats a dish as indented JSON for the preview modal.
+func BuildJSONContent(dish model.Dish) string {
+	j, err := json.MarshalIndent(dish, "", "  ")
+	if err != nil {
+		return "Error formatting JSON"
+	}
+	return string(j)
+}
+
+// BuildHelpContent builds the help/about modal content.
+func BuildHelpContent(version, githubURL string) string {
+	var b strings.Builder
+	b.WriteString(style.TitleStyle.Render("Keybindings") + "\n\n")
+
+	keys := []struct{ key, desc string }{
+		{"s", "Cycle station"},
+		{"t", "Cycle target"},
+		{"u", "Cycle up signal"},
+		{"d", "Cycle down signal"},
+		{"↑ ↓", "Navigate dishes"},
+		{"b", "Bookmark dish"},
+		{"c", "Toggle compact view"},
+		{"S", "Cycle compact sort"},
+		{"T", "Cycle theme"},
+		{"y", "Copy to clipboard"},
+		{"J", "JSON preview"},
+		{"i", "Antenna specs"},
+		{"+ -", "Adjust refresh interval"},
+		{"?", "This help"},
+		{"Esc", "Close modal"},
+		{"q", "Quit"},
+	}
+
+	for _, k := range keys {
+		fmt.Fprintf(&b, "  %s  %s\n",
+			style.PrimaryStyle.Render(fmt.Sprintf("%-6s", k.key)),
+			style.LabelStyle.Render(k.desc),
+		)
+	}
+
+	b.WriteString("\n" + style.TitleStyle.Render("About") + "\n\n")
+	fmt.Fprintf(&b, "  Version  %s\n", style.ValueStyle.Render(version))
+	fmt.Fprintf(&b, "  GitHub   %s\n", style.ValueStyle.Render(githubURL))
+
+	return b.String()
+}
+
+// BuildDishSpecsContent builds the dish specification modal content.
+func BuildDishSpecsContent(spec model.DishSpecification) string {
+	var b strings.Builder
+	b.WriteString(style.TitleStyle.Render("Antenna Specification") + "\n\n")
+
+	fields := []struct{ label, value string }{
+		{"Name", spec.Name},
+		{"Type", spec.Type},
+		{"Diameter", spec.Diameter},
+		{"", ""},
+		{"Transmitters frequency", spec.TransmittersFrequency},
+		{"Receivers frequency", spec.ReceiversFrequency},
+		{"Transmitters power", spec.TransmittersPower},
+		{"Precision", spec.Precision},
+		{"Antenna speed", spec.AntennaSpeed},
+		{"", ""},
+		{"Total weight", spec.TotalWeight},
+		{"Dish weight", spec.DishWeight},
+		{"Total panels", spec.TotalPanels},
+		{"Surface area", spec.SurfaceArea},
+		{"", ""},
+		{"Operational wind resistance", spec.OperationalWindResistance},
+		{"Max wind resistance", spec.WindResistance},
+		{"Built in", spec.BuiltIn},
+		{"Web URL", spec.WebUrl},
+	}
+
+	for _, f := range fields {
+		if f.label == "" {
+			b.WriteString("\n")
+			continue
+		}
+		fmt.Fprintf(&b, "  %-30s %s\n",
+			style.LabelStyle.Render(f.label+":"),
+			style.ValueStyle.Render(style.DashIfEmpty(f.value)),
+		)
+	}
+
+	return b.String()
+}
