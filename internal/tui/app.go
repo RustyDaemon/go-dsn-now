@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,9 +41,6 @@ type Model struct {
 	compactTable components.CompactTable
 	modal        components.Modal
 	spinner      spinner.Model
-
-	// Clock
-	clock time.Time
 
 	// Status message (transient)
 	statusMessage string
@@ -107,11 +105,51 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Fatal error on config load
 		return m, tea.Quit
 
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
+
 	case DSNDataLoadedMsg:
 		data.MapDataToFullData(msg.Data, &m.appData.FullData)
 		m.appData.LastError = ""
 		m.appData.ConsecutiveErrors = 0
 		m.appData.LastUpdated = time.Now()
+
+		// Record signal history for sparklines
+		for _, station := range m.appData.FullData.Stations {
+			for _, dish := range station.Dishes {
+				var downVal float64
+				for _, sig := range dish.DownSignals {
+					if sig.IsActive {
+						if v, err := strconv.ParseFloat(sig.DataRate, 64); err == nil && v >= 0 {
+							downVal = v
+							break
+						}
+					}
+				}
+				dk := dish.Name + ":down"
+				dh := append(m.appData.SignalHistory[dk], downVal)
+				if len(dh) > 20 {
+					dh = dh[len(dh)-20:]
+				}
+				m.appData.SignalHistory[dk] = dh
+
+				var upVal float64
+				for _, sig := range dish.UpSignals {
+					if sig.IsActive {
+						if v, err := strconv.ParseFloat(sig.Power, 64); err == nil && v >= 0 {
+							upVal = v
+							break
+						}
+					}
+				}
+				uk := dish.Name + ":up"
+				uh := append(m.appData.SignalHistory[uk], upVal)
+				if len(uh) > 20 {
+					uh = uh[len(uh)-20:]
+				}
+				m.appData.SignalHistory[uk] = uh
+			}
+		}
 
 		if m.appData.FullData.Stations == nil {
 			return m, nil
@@ -135,9 +173,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.appData.DetectSignalChanges()
 		m.refreshDishList()
-		if m.appData.CompactView {
-			m.refreshCompactTable()
-		}
+		m.refreshCompactTable()
 		return m, nil
 
 	case DSNDataErrorMsg:
@@ -152,8 +188,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case TickClockMsg:
-		m.clock = time.Time(msg)
-		m.statusBar.SetClock(m.clock)
 		return m, nil
 
 	case CopyResultMsg:
@@ -211,13 +245,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		m.cycleDownSignal()
 	case "up", "k":
-		if m.appData.CompactView {
+		if m.useCompactView() {
 			cmd := m.compactTable.Update(msg)
 			return m, cmd
 		}
 		m.navigateDish(-1)
 	case "down", "j":
-		if m.appData.CompactView {
+		if m.useCompactView() {
 			cmd := m.compactTable.Update(msg)
 			return m, cmd
 		}
@@ -230,7 +264,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.refreshCompactTable()
 		}
 	case "S":
-		if m.appData.CompactView {
+		if m.useCompactView() {
 			m.appData.CycleCompactSortMode()
 			m.refreshCompactTable()
 		}
@@ -241,6 +275,18 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.compactTable.RefreshStyles()
 		m.statusMessage = "Theme: " + themeName
 		return m, clearStatusMessage(2 * time.Second)
+	case "U":
+		units := []string{"km", "au", "lmin", "lhour"}
+		current := m.settings.DistanceUnit
+		next := "au"
+		for i, u := range units {
+			if u == current {
+				next = units[(i+1)%len(units)]
+				break
+			}
+		}
+		m.settings.DistanceUnit = next
+		data.SaveSettings(m.settings)
 	case "y":
 		text := m.getVisibleContent()
 		return m, copyToClipboard(text)
@@ -283,6 +329,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// useCompactView returns true when compact mode should be rendered — either
+// because the user toggled it, or because the terminal is too small for the
+// detailed layout.
+func (m Model) useCompactView() bool {
+	return m.appData.CompactView || m.width < 80 || m.height < 20
+}
+
 func (m Model) View() string {
 	if !m.ready {
 		return m.viewLoading()
@@ -296,7 +349,7 @@ func (m Model) View() string {
 	}
 
 	var mainArea string
-	if m.appData.CompactView {
+	if m.useCompactView() {
 		mainArea = m.compactTable.View()
 	} else {
 		mainArea = m.viewDetailed()
@@ -306,14 +359,32 @@ func (m Model) View() string {
 }
 
 func (m Model) viewLoading() string {
-	msg := m.spinner.View() + " Initializing, please wait..."
+	title := style.TitleStyle.Render("GO DSN NOW")
+	subtitle := style.LabelStyle.Render("Go Deep Space Network Monitor")
+	version := style.MutedStyle.Render("v" + m.cfg.AppVersion)
+	loading := style.DimStyle.Render(m.spinner.View() + " Loading configuration...")
+	url := style.MutedStyle.Render("")
 
-	loadingStyle := lipgloss.NewStyle().
-		Foreground(style.ColorTextNormal)
+	box := lipgloss.JoinVertical(lipgloss.Center,
+		"",
+		title,
+		subtitle,
+		version,
+		"",
+		loading,
+		"",
+		url,
+		"",
+	)
+
+	splashStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.DoubleBorder()).
+		BorderForeground(style.ColorBorderModal).
+		Padding(1, 4)
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
-		loadingStyle.Render(msg),
+		splashStyle.Render(box),
 		lipgloss.WithWhitespaceBackground(style.ColorBgDeep),
 	)
 }
@@ -329,7 +400,6 @@ func (m Model) viewDetailed() string {
 	mainHeight := m.height - statusHeight
 
 	// Left panel: dish list + station bar
-	// Station bar: 2 border + station lines
 	stationBarLines := 2 + len(m.appData.FullData.Stations)
 	dishHeight := mainHeight - stationBarLines
 	if dishHeight < 5 {
@@ -350,18 +420,88 @@ func (m Model) viewDetailed() string {
 	upSignals, _ := m.appData.GetUpSignals()
 	downSignals, _ := m.appData.GetDownSignals()
 
-	antennaInfo := components.RenderAntennaInfo(dish, rightWidth)
-	targetView := components.RenderTarget(targets, m.appData.SelectedTargetIdx, rightWidth)
+	upSparkline := style.Sparkline(m.appData.SignalHistory[dish.Name+":up"])
+	downSparkline := style.Sparkline(m.appData.SignalHistory[dish.Name+":down"])
 
-	signalHalfWidth := rightWidth / 2
-	upView := components.RenderUpSignal(upSignals, m.appData.SelectedUpSignalIdx, signalHalfWidth)
-	downView := components.RenderDownSignal(downSignals, m.appData.SelectedDownSignalIdx, signalHalfWidth)
-	signalsRow := lipgloss.JoinHorizontal(lipgloss.Top, upView, downView)
+	antennaInfo := components.RenderAntennaInfo(dish, rightWidth)
+	targetView := components.RenderTarget(targets, m.appData.SelectedTargetIdx, rightWidth, m.settings.DistanceUnit)
+
+	var signalsRow string
+	if m.width >= 180 {
+		// Wide layout: stack signals vertically at full right-panel width
+		upView := components.RenderUpSignal(upSignals, m.appData.SelectedUpSignalIdx, rightWidth, upSparkline)
+		downView := components.RenderDownSignal(downSignals, m.appData.SelectedDownSignalIdx, rightWidth, downSparkline)
+		signalsRow = lipgloss.JoinVertical(lipgloss.Left, upView, downView)
+	} else {
+		signalHalfWidth := rightWidth / 2
+		upView := components.RenderUpSignal(upSignals, m.appData.SelectedUpSignalIdx, signalHalfWidth, upSparkline)
+		downView := components.RenderDownSignal(downSignals, m.appData.SelectedDownSignalIdx, signalHalfWidth, downSparkline)
+		signalsRow = lipgloss.JoinHorizontal(lipgloss.Top, upView, downView)
+	}
 
 	rightPanel := lipgloss.JoinVertical(lipgloss.Left, antennaInfo, targetView, signalsRow)
 	rightPanel = lipgloss.NewStyle().Width(rightWidth).Height(mainHeight).Render(rightPanel)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
+}
+
+func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if !m.ready {
+		return m, nil
+	}
+
+	isWheel := msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown
+
+	// Forward scroll to modal when open
+	if m.activeModal != components.ModalNone {
+		if isWheel {
+			cmd := m.modal.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+	}
+
+	if m.appData.CompactView {
+		return m, nil
+	}
+
+	leftWidth := m.width / 4
+	if leftWidth < 20 {
+		leftWidth = 20
+	}
+
+	switch {
+	case isWheel:
+		// Let the list handle scrolling natively, then sync index
+		cmd := m.dishList.Update(msg)
+		newIdx := m.dishList.Index()
+		if newIdx != m.appData.SelectedDishIdx {
+			m.appData.SelectedDishIdx = newIdx
+			m.appData.SelectedTargetIdx = 0
+			m.appData.SelectedUpSignalIdx = 0
+			m.appData.SelectedDownSignalIdx = 0
+		}
+		return m, cmd
+
+	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
+		if msg.X < leftWidth && m.appData.SelectedStationIdx >= 0 {
+			// Account for the list's scroll offset and the top panel border row
+			offset := m.dishList.VisibleOffset()
+			dishIdx := offset + msg.Y - 1
+			if dishIdx >= 0 {
+				station := m.appData.FullData.Stations[m.appData.SelectedStationIdx]
+				if dishIdx < len(station.Dishes) {
+					m.appData.SelectedDishIdx = dishIdx
+					m.appData.SelectedTargetIdx = 0
+					m.appData.SelectedUpSignalIdx = 0
+					m.appData.SelectedDownSignalIdx = 0
+					m.dishList.Select(dishIdx)
+				}
+			}
+		}
+	}
+
+	return m, nil
 }
 
 func (m *Model) resizeComponents() {
@@ -538,6 +678,7 @@ func (m Model) buildStatusParams() components.StatusBarParams {
 		SignalChanges:   m.appData.SignalChanges,
 		RefreshInterval: fmt.Sprintf("%ds", int(m.cfg.RefreshInterval.Seconds())),
 		StatusMessage:   m.statusMessage,
+		DistanceUnit:    m.settings.DistanceUnit,
 	}
 
 	if !m.appData.LastUpdated.IsZero() {
@@ -587,7 +728,7 @@ func (m Model) getVisibleContent() string {
 			name = t.Spacecraft.FriendlyName
 		}
 		b.WriteString(fmt.Sprintf("Spacecraft: %s\n", name))
-		b.WriteString(fmt.Sprintf("Range: %s\n", style.FormatRange(t.UplegRange)))
+		b.WriteString(fmt.Sprintf("Range: %s\n", style.FormatRangeInUnit(t.UplegRange, m.settings.DistanceUnit)))
 		b.WriteString(fmt.Sprintf("Round-trip light time: %s\n", style.FormatRTLT(t.Rtlt)))
 	}
 

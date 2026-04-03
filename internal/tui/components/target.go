@@ -10,7 +10,7 @@ import (
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
 )
 
-func RenderTarget(targets []model.Target, selectedIdx int, width int) string {
+func RenderTarget(targets []model.Target, selectedIdx int, width int, distanceUnit string) string {
 	if len(targets) == 0 {
 		title := style.TitleStyle.Render("Target:") + " " + style.DimStyle.Render("No target")
 		return style.RenderTitledPanel(title, style.DimStyle.Render("No target data"), width, style.ColorTextMuted)
@@ -29,7 +29,7 @@ func RenderTarget(targets []model.Target, selectedIdx int, width int) string {
 		name = target.Spacecraft.FriendlyName
 	}
 
-	rangeVal := style.FormatRange(target.UplegRange)
+	rangeVal := style.FormatRangeInUnit(target.UplegRange, distanceUnit)
 	rtlt := style.FormatRTLT(target.Rtlt)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,

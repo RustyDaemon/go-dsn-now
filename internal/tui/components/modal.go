@@ -38,8 +38,8 @@ func NewModal() Modal {
 func (m *Modal) SetSize(w, h int) {
 	m.width = w
 	m.height = h
-	vpW := w * 3 / 4
-	vpH := h * 3 / 4
+	vpW := w - 4
+	vpH := h - 4
 	if vpW < 40 {
 		vpW = 40
 	}
@@ -63,8 +63,8 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m Modal) View() string {
-	vpW := m.width * 3 / 4
-	vpH := m.height * 3 / 4
+	vpW := m.width - 4
+	vpH := m.height - 4
 	if vpW < 40 {
 		vpW = 40
 	}
@@ -90,7 +90,27 @@ func (m Modal) View() string {
 	}
 
 	topLine := bc.Render("╔") + bc.Render("═") + titleRendered + bc.Render(strings.Repeat("═", topFillLen)) + bc.Render("╗")
-	bottomLine := bc.Render("╚") + bc.Render(strings.Repeat("═", innerWidth)) + bc.Render("╝")
+
+	// Scroll indicators in bottom border
+	scrollUp := !m.viewport.AtTop()
+	scrollDown := !m.viewport.AtBottom()
+	scrollStyle := lipgloss.NewStyle().Foreground(style.ColorPrimary)
+	var arrowLeft, arrowRight string
+	if scrollUp {
+		arrowLeft = scrollStyle.Render("▲")
+	} else {
+		arrowLeft = bc.Render("═")
+	}
+	if scrollDown {
+		arrowRight = scrollStyle.Render("▼")
+	} else {
+		arrowRight = bc.Render("═")
+	}
+	bottomFillLen := innerWidth - 2
+	if bottomFillLen < 0 {
+		bottomFillLen = 0
+	}
+	bottomLine := bc.Render("╚") + arrowLeft + bc.Render(strings.Repeat("═", bottomFillLen)) + arrowRight + bc.Render("╝")
 
 	contentStyle := lipgloss.NewStyle().
 		Width(innerWidth - 4).
@@ -149,6 +169,7 @@ func BuildHelpContent(version, githubURL string) string {
 		{"c", "Toggle compact view"},
 		{"S", "Cycle compact sort"},
 		{"T", "Cycle theme"},
+		{"U", "Cycle distance unit"},
 		{"y", "Copy to clipboard"},
 		{"J", "JSON preview"},
 		{"i", "Antenna specs"},
@@ -175,7 +196,6 @@ func BuildHelpContent(version, githubURL string) string {
 // BuildDishSpecsContent builds the dish specification modal content.
 func BuildDishSpecsContent(spec model.DishSpecification) string {
 	var b strings.Builder
-	b.WriteString(style.TitleStyle.Render("Antenna Specification") + "\n\n")
 
 	fields := []struct{ label, value string }{
 		{"Name", spec.Name},

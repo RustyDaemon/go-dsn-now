@@ -10,6 +10,7 @@ type Settings struct {
 	RefreshIntervalSeconds int    `json:"refreshIntervalSeconds"`
 	Theme                  string `json:"theme"`
 	LastStation            string `json:"lastStation,omitempty"`
+	DistanceUnit           string `json:"distanceUnit,omitempty"`
 }
 
 func SettingsPath() string {

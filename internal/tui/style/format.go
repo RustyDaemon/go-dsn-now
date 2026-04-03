@@ -3,6 +3,7 @@ package style
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 func DefaultIfEmpty(value, defaultValue string) string {
@@ -108,4 +109,57 @@ func FormatPowerRx(raw string) string {
 		return "-"
 	}
 	return raw + " dBm"
+}
+
+// FormatRangeInUnit formats a range value (in km) into the specified unit.
+// unit: "km" (default), "au", "lmin" (light-minutes), "lhour" (light-hours)
+func FormatRangeInUnit(raw, unit string) string {
+	if len(raw) == 0 {
+		return "-"
+	}
+	val, err := strconv.ParseFloat(raw, 64)
+	if err != nil || val < 0 {
+		return FormatRange(raw)
+	}
+	switch unit {
+	case "au":
+		return fmt.Sprintf("%.4f AU", val/149_597_870.7)
+	case "lmin":
+		return fmt.Sprintf("%.2f light-min", val/17_987_547.48)
+	case "lhour":
+		return fmt.Sprintf("%.4f light-hr", val/1_079_252_848.8)
+	default:
+		return FormatRange(raw)
+	}
+}
+
+var sparklineBars = []string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
+
+// Sparkline renders a series of float64 values as a single-line ASCII bar chart.
+// Returns an empty string if fewer than 2 samples exist.
+func Sparkline(values []float64) string {
+	if len(values) < 2 {
+		return ""
+	}
+	min, max := values[0], values[0]
+	for _, v := range values {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+	var b strings.Builder
+	for _, v := range values {
+		idx := 0
+		if max > min {
+			idx = int((v - min) / (max - min) * 7)
+			if idx > 7 {
+				idx = 7
+			}
+		}
+		b.WriteString(sparklineBars[idx])
+	}
+	return b.String()
 }
