@@ -1,8 +1,8 @@
 # Go NASA Deep Space Network Now
 
-This is unofficial application for live monitoring the [NASA Deep Space Network Now](https://www.nasa.gov/directorates/somd/space-communications-navigation-program/what-is-the-deep-space-network/).
+Unofficial terminal UI for live monitoring the [NASA Deep Space Network](https://www.nasa.gov/directorates/somd/space-communications-navigation-program/what-is-the-deep-space-network/).
 
-The NASA Deep Space Network (DSN) is a global system of large antennas and communication facilities used to track, send commands, and receive data from spacecraft exploring deep space. Operated by NASA’s Jet Propulsion Laboratory (JPL), the DSN supports missions to the Moon, Mars, outer planets, and beyond, including the Voyager, Perseverance, and James Webb Space Telescope.
+The DSN is a global system of large antennas and communication facilities used to track, send commands, and receive data from spacecraft exploring deep space. Operated by NASA's Jet Propulsion Laboratory (JPL), it supports missions to the Moon, Mars, outer planets, and beyond, including Voyager, Perseverance, and the James Webb Space Telescope.
 
 ---
 
@@ -10,45 +10,50 @@ The NASA Deep Space Network (DSN) is a global system of large antennas and commu
 
 ## Features
 
-- **Live monitoring with real-time, detailed data.** Data updates are almost instantaneous.
-- **Display targets being tracked by the stations.** You can visualize the current target, distance, and round-trip light time value.
-- **Display up and down signals for each station.** You can observe the signal strength, frequency, data rate, and modulation type.
-- **Interactive.** You can select a station, antenna, current target, and both types of signals.
-- **Informative.** You can access detailed information about the station, antenna, target, and signals.
-- **Themes.** Cycle through 4 built-in color themes: dark, solarized, nord, and light.
-- **Bookmarks.** Mark dishes of interest with a star indicator. Bookmarks persist across sessions.
-- **Compact view.** Toggle between a detailed view and a compact table overview of all dishes.
-- **Signal notifications.** Get notified in the status bar when signals are acquired or lost.
-- **Connection indicator.** A colored status indicator shows whether the data feed is connected, degraded, or disconnected.
+- **Live monitoring.** Data updates are nearly instantaneous.
+- **Station and antenna overview.** See current targets, distances, and round-trip light time values.
+- **Signal details.** Observe signal strength, frequency, data rate, and modulation type for up and down links.
+- **Signal sparklines.** Scrolling mini-charts show recent signal activity per dish.
+- **Interactive navigation.** Select stations, antennas, targets, and signals.
+- **Themes.** Cycle through 6 built-in color themes: cosmic, phosphor, solar, nord, dracula, and amber.
+- **Bookmarks.** Star dishes of interest. Bookmarks persist across sessions.
+- **Compact view.** Toggle between a detailed view and a compact table with sortable columns.
+- **Distance units.** Cycle between km, AU, light-minutes, and light-hours.
+- **Signal notifications.** Status bar alerts when signals are acquired or lost.
+- **Connection indicator.** Colored dot shows whether the feed is connected, degraded, or disconnected.
 
 ## Keyboard Shortcuts
 
-| Key     | Action                          |
-| ------- | ------------------------------- |
-| `s`     | Cycle through stations          |
-| `t`     | Cycle through targets           |
-| `u`     | Cycle through up signals        |
-| `d`     | Cycle through down signals      |
-| `↑` `↓` | Navigate dishes list            |
-| `b`     | Toggle bookmark on current dish |
-| `c`     | Toggle compact view             |
-| `T`     | Cycle through themes            |
-| `j`     | Show JSON preview               |
-| `i`     | Show antenna specifications     |
-| `?`     | Show help                       |
-| `Esc`   | Close modal                     |
-| `q`     | Quit                            |
+| Key       | Action                          |
+| --------- | ------------------------------- |
+| `s`       | Cycle through stations          |
+| `t`       | Cycle through targets           |
+| `u`       | Cycle through up signals        |
+| `d`       | Cycle through down signals      |
+| `↑` `↓`   | Navigate dishes list            |
+| `b`       | Toggle bookmark on current dish |
+| `c`       | Toggle compact view             |
+| `S`       | Cycle compact sort mode         |
+| `T`       | Cycle through themes            |
+| `U`       | Cycle distance unit             |
+| `y`       | Copy visible content to clipboard |
+| `J`       | Show JSON preview               |
+| `i`       | Show antenna specifications     |
+| `+` `-`   | Adjust refresh interval         |
+| `?`       | Show help                       |
+| `Esc`     | Close modal                     |
+| `q`       | Quit                            |
 
 ## Installation
 
 0. Requires [Go](https://go.dev/) to be installed.
-1. Install the application by running: `go install github.com/RustyDaemon/go-dsn-now@latest`
-2. Run the application with `go-dsn-now`.
+1. Install: `go install github.com/RustyDaemon/go-dsn-now@latest`
+2. Run: `go-dsn-now`
 
-> **Note:** If you get `command not found`, make sure `$GOPATH/bin` is in your `PATH`. You can find your `GOPATH` by running `go env GOPATH`.
+> **Note:** If you get `command not found`, make sure `$GOPATH/bin` is in your `PATH`. Run `go env GOPATH` to find it.
 
 ## License
 
 Licensed under [Apache 2.0](LICENSE). Third-party dependencies are subject to their own licenses.
 
-[NASA Deep Space Network Now](https://eyes.nasa.gov/dsn/dsn.html) data is sourced indirectly from NASA and used solely for educational and informational purposes. This project is not affiliated with NASA or any of its subsidiaries.
+[NASA Deep Space Network Now](https://eyes.nasa.gov/dsn/dsn.html) data is sourced from NASA and used for educational and informational purposes only. This project is not affiliated with NASA or any of its subsidiaries.

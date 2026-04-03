@@ -20,11 +20,11 @@ type AppData struct {
 	ConsecutiveErrors     int
 	CompactView           bool
 	CompactSortMode       CompactSortMode
-	Bookmarks             map[string]bool        // dish name -> bookmarked
-	PrevSignalCounts      map[string]signalCount // dish name -> signal counts from last update
-	SignalChanges         []string               // recent signal change notifications
-	DishActiveSince       map[string]time.Time   // dish name -> time when signals first became active
-	SignalHistory         map[string][]float64   // "dishName:down" / "dishName:up" -> recent values
+	Bookmarks             map[string]bool
+	PrevSignalCounts      map[string]signalCount
+	SignalChanges         []string
+	DishActiveSince       map[string]time.Time
+	SignalHistory         map[string][]float64
 }
 
 type CompactSortMode int

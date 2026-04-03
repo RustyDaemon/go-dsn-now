@@ -75,7 +75,6 @@ func (m Modal) View() string {
 	content := m.viewport.View()
 	title := style.ModalTitleStyle.Render(m.title)
 
-	// Build modal box manually with double borders
 	innerWidth := vpW - 2
 	if innerWidth < 4 {
 		innerWidth = 4
@@ -91,7 +90,6 @@ func (m Modal) View() string {
 
 	topLine := bc.Render("╔") + bc.Render("═") + titleRendered + bc.Render(strings.Repeat("═", topFillLen)) + bc.Render("╗")
 
-	// Scroll indicators in bottom border
 	scrollUp := !m.viewport.AtTop()
 	scrollDown := !m.viewport.AtBottom()
 	scrollStyle := lipgloss.NewStyle().Foreground(style.ColorPrimary)
@@ -145,7 +143,6 @@ func (m Modal) View() string {
 	)
 }
 
-// BuildJSONContent formats a dish as indented JSON for the preview modal.
 func BuildJSONContent(dish model.Dish) string {
 	j, err := json.MarshalIndent(dish, "", "  ")
 	if err != nil {
@@ -154,7 +151,6 @@ func BuildJSONContent(dish model.Dish) string {
 	return string(j)
 }
 
-// BuildHelpContent builds the help/about modal content.
 func BuildHelpContent(version, githubURL string) string {
 	var b strings.Builder
 	b.WriteString(style.TitleStyle.Render("Keybindings") + "\n\n")
@@ -193,7 +189,6 @@ func BuildHelpContent(version, githubURL string) string {
 	return b.String()
 }
 
-// BuildDishSpecsContent builds the dish specification modal content.
 func BuildDishSpecsContent(spec model.DishSpecification) string {
 	var b strings.Builder
 

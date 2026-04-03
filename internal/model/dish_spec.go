@@ -29,7 +29,6 @@ func (d *Dish) GetDishSpecification() DishSpecification {
 }
 
 var dishSpecs = map[string]DishSpecification{
-	// gdscc
 	"DSS14": {
 		Name:                      "DSS-14",
 		Diameter:                  "70 meters",
@@ -106,7 +105,6 @@ var dishSpecs = map[string]DishSpecification{
 		WebUrl:                    "",
 		Location:                  "gdscc",
 	},
-	// cdscc
 	"DSS34": {
 		Name:                      "DSS-34",
 		Diameter:                  "34 meters",
@@ -183,7 +181,6 @@ var dishSpecs = map[string]DishSpecification{
 		WebUrl:                    "https://www.cdscc.nasa.gov/Pages/Antennas/dss43.html",
 		Location:                  "cdscc",
 	},
-	// mdscc
 	"DSS53": {
 		Name:                      "DSS-53",
 		Diameter:                  "34 meters",

@@ -2,8 +2,6 @@ package model
 
 import "strings"
 
-// todo after the MVP is done, refactor the models: types, fields, etc.
-
 type FullData struct {
 	Stations    []Station
 	Spacecrafts []Spacecraft

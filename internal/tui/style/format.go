@@ -111,8 +111,6 @@ func FormatPowerRx(raw string) string {
 	return raw + " dBm"
 }
 
-// FormatRangeInUnit formats a range value (in km) into the specified unit.
-// unit: "km" (default), "au", "lmin" (light-minutes), "lhour" (light-hours)
 func FormatRangeInUnit(raw, unit string) string {
 	if len(raw) == 0 {
 		return "-"
@@ -135,8 +133,6 @@ func FormatRangeInUnit(raw, unit string) string {
 
 var sparklineBars = []string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
 
-// Sparkline renders a series of float64 values as a single-line ASCII bar chart.
-// Returns an empty string if fewer than 2 samples exist.
 func Sparkline(values []float64) string {
 	if len(values) < 2 {
 		return ""

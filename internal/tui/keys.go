@@ -103,7 +103,6 @@ var Keys = KeyMap{
 	),
 }
 
-// ShortHelp returns keybindings for the mini help view.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.CycleStation, k.CycleTarget, k.CycleUpSignal, k.CycleDownSignal,
@@ -111,7 +110,6 @@ func (k KeyMap) ShortHelp() []key.Binding {
 	}
 }
 
-// FullHelp returns keybindings for the expanded help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.CycleStation, k.CycleTarget, k.CycleUpSignal, k.CycleDownSignal},

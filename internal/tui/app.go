@@ -20,21 +20,17 @@ import (
 )
 
 type Model struct {
-	// Dimensions
 	width  int
 	height int
 
-	// Core data
 	appData    *model.AppData
 	cfg        *config.Config
 	settings   *data.Settings
 	httpClient *http.Client
 
-	// UI state
 	ready       bool
 	activeModal components.ModalType
 
-	// Sub-components
 	dishList     components.DishList
 	stationBar   components.StationBar
 	statusBar    components.StatusBar
@@ -42,7 +38,6 @@ type Model struct {
 	modal        components.Modal
 	spinner      spinner.Model
 
-	// Status message (transient)
 	statusMessage string
 }
 
@@ -102,7 +97,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case DSNConfigErrorMsg:
-		// Fatal error on config load
 		return m, tea.Quit
 
 	case tea.MouseMsg:
@@ -114,7 +108,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appData.ConsecutiveErrors = 0
 		m.appData.LastUpdated = time.Now()
 
-		// Record signal history for sparklines
 		for _, station := range m.appData.FullData.Stations {
 			for _, dish := range station.Dishes {
 				var downVal float64
@@ -211,7 +204,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Modal active: only close/quit/scroll
 	if m.activeModal != components.ModalNone {
 		switch {
 		case msg.String() == "q":
@@ -225,12 +217,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Quit always works
 	if msg.String() == "q" {
 		return m, tea.Quit
 	}
 
-	// Not ready: no other keys
 	if !m.ready {
 		return m, nil
 	}
@@ -329,9 +319,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// useCompactView returns true when compact mode should be rendered — either
-// because the user toggled it, or because the terminal is too small for the
-// detailed layout.
 func (m Model) useCompactView() bool {
 	return m.appData.CompactView || m.width < 80 || m.height < 20
 }
@@ -390,7 +377,6 @@ func (m Model) viewLoading() string {
 }
 
 func (m Model) viewDetailed() string {
-	// Calculate panel widths
 	leftWidth := m.width / 4
 	if leftWidth < 20 {
 		leftWidth = 20
@@ -399,7 +385,6 @@ func (m Model) viewDetailed() string {
 	statusHeight := 3
 	mainHeight := m.height - statusHeight
 
-	// Left panel: dish list + station bar
 	stationBarLines := 2 + len(m.appData.FullData.Stations)
 	dishHeight := mainHeight - stationBarLines
 	if dishHeight < 5 {
@@ -414,7 +399,6 @@ func (m Model) viewDetailed() string {
 	leftPanel := lipgloss.JoinVertical(lipgloss.Left, dishListView, stationBarView)
 	leftPanel = lipgloss.NewStyle().Width(leftWidth).Height(mainHeight).Render(leftPanel)
 
-	// Right panel: antenna info + target + signals
 	dish, _ := m.appData.GetSelectedDish()
 	targets, _ := m.appData.GetTargets()
 	upSignals, _ := m.appData.GetUpSignals()
@@ -428,7 +412,6 @@ func (m Model) viewDetailed() string {
 
 	var signalsRow string
 	if m.width >= 180 {
-		// Wide layout: stack signals vertically at full right-panel width
 		upView := components.RenderUpSignal(upSignals, m.appData.SelectedUpSignalIdx, rightWidth, upSparkline)
 		downView := components.RenderDownSignal(downSignals, m.appData.SelectedDownSignalIdx, rightWidth, downSparkline)
 		signalsRow = lipgloss.JoinVertical(lipgloss.Left, upView, downView)
@@ -452,7 +435,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	isWheel := msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown
 
-	// Forward scroll to modal when open
 	if m.activeModal != components.ModalNone {
 		if isWheel {
 			cmd := m.modal.Update(msg)
@@ -472,7 +454,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	switch {
 	case isWheel:
-		// Let the list handle scrolling natively, then sync index
 		cmd := m.dishList.Update(msg)
 		newIdx := m.dishList.Index()
 		if newIdx != m.appData.SelectedDishIdx {
@@ -485,7 +466,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
 		if msg.X < leftWidth && m.appData.SelectedStationIdx >= 0 {
-			// Account for the list's scroll offset and the top panel border row
 			offset := m.dishList.VisibleOffset()
 			dishIdx := offset + msg.Y - 1
 			if dishIdx >= 0 {
@@ -512,13 +492,11 @@ func (m *Model) resizeComponents() {
 	statusHeight := 3
 	mainHeight := m.height - statusHeight
 
-	// Station bar panel: top border + station lines + bottom border
 	stationCount := len(m.appData.FullData.Stations)
 	if stationCount == 0 {
-		stationCount = 3 // estimate before data loads
+		stationCount = 3
 	}
 	stationBarHeight := stationCount + 2
-	// Dish list content height: subtract station bar and dish panel's own 2 border lines
 	dishHeight := mainHeight - stationBarHeight - 2
 	if dishHeight < 3 {
 		dishHeight = 3

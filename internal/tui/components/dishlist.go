@@ -13,7 +13,6 @@ import (
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
 )
 
-// DishItem implements list.Item for a dish entry.
 type DishItem struct {
 	Dish       model.Dish
 	Bookmarked bool
@@ -23,7 +22,6 @@ func (d DishItem) FilterValue() string { return d.Dish.FriendlyName }
 func (d DishItem) Title() string       { return d.Dish.FriendlyName }
 func (d DishItem) Description() string { return "" }
 
-// DishDelegate renders each dish list item.
 type DishDelegate struct{}
 
 func (d DishDelegate) Height() int                             { return 1 }
@@ -83,7 +81,6 @@ func (d DishDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	line := b.String()
 
 	if isSelected {
-		// Pad to full width and apply highlight background
 		lineWidth := lipgloss.Width(line)
 		availWidth := m.Width()
 		if lineWidth < availWidth {
@@ -95,7 +92,6 @@ func (d DishDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, line)
 }
 
-// DishList wraps a bubbles/list.Model for dish navigation.
 type DishList struct {
 	list list.Model
 }
@@ -138,7 +134,6 @@ func (d *DishList) Select(index int) {
 	d.list.Select(index)
 }
 
-// VisibleOffset returns the index of the first visible item in the list.
 func (d *DishList) VisibleOffset() int {
 	return d.list.Paginator.Page * d.list.Paginator.PerPage
 }

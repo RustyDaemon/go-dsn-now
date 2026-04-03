@@ -2,7 +2,6 @@ package style
 
 import "github.com/charmbracelet/lipgloss"
 
-// Theme defines a complete color scheme.
 type Theme struct {
 	Name string
 
@@ -170,7 +169,6 @@ var themes = []Theme{
 
 var currentThemeIdx int
 
-// Color palette (updated by ApplyTheme)
 var (
 	ColorBgDeep      lipgloss.TerminalColor
 	ColorBgPanel     lipgloss.TerminalColor
@@ -199,14 +197,12 @@ var (
 	ColorBorderModal  lipgloss.TerminalColor
 )
 
-// Panel styles (updated by ApplyTheme)
 var (
 	PanelStyle       lipgloss.Style
 	ActivePanelStyle lipgloss.Style
 	ModalStyle       lipgloss.Style
 )
 
-// Text styles (updated by ApplyTheme)
 var (
 	TitleStyle       lipgloss.Style
 	ValueStyle       lipgloss.Style
@@ -221,21 +217,18 @@ var (
 	PrimaryBoldStyle lipgloss.Style
 )
 
-// Status indicators (updated by ApplyTheme)
 var (
 	ConnectedDot    string
 	DegradedDot     string
 	DisconnectedDot string
 )
 
-// Modal title style (updated by ApplyTheme)
 var ModalTitleStyle lipgloss.Style
 
 func init() {
 	ApplyTheme(themes[0])
 }
 
-// ApplyTheme updates all global color and style variables.
 func ApplyTheme(t Theme) {
 	ColorBgDeep = t.BgDeep
 	ColorBgPanel = t.BgPanel
@@ -289,14 +282,12 @@ func ApplyTheme(t Theme) {
 	ModalTitleStyle = lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true)
 }
 
-// CycleTheme advances to the next theme and returns its name.
 func CycleTheme() string {
 	currentThemeIdx = (currentThemeIdx + 1) % len(themes)
 	ApplyTheme(themes[currentThemeIdx])
 	return themes[currentThemeIdx].Name
 }
 
-// SetThemeByName applies a theme by name. Does nothing if name is not found.
 func SetThemeByName(name string) {
 	for i, t := range themes {
 		if t.Name == name {
@@ -307,7 +298,6 @@ func SetThemeByName(name string) {
 	}
 }
 
-// CurrentThemeName returns the name of the active theme.
 func CurrentThemeName() string {
 	return themes[currentThemeIdx].Name
 }
