@@ -3,24 +3,25 @@ package tui
 import "github.com/charmbracelet/bubbles/key"
 
 type KeyMap struct {
-	CycleStation    key.Binding
-	CycleTarget     key.Binding
-	CycleUpSignal   key.Binding
-	CycleDownSignal key.Binding
-	NavigateUp      key.Binding
-	NavigateDown    key.Binding
-	Bookmark        key.Binding
-	CompactView     key.Binding
-	CompactSort     key.Binding
-	Clipboard       key.Binding
-	JSONPreview     key.Binding
-	DishSpecs       key.Binding
-	CycleTheme      key.Binding
-	IncreaseRefresh key.Binding
-	DecreaseRefresh key.Binding
-	Help            key.Binding
-	CloseModal      key.Binding
-	Quit            key.Binding
+	CycleStation      key.Binding
+	CycleTarget       key.Binding
+	CycleUpSignal     key.Binding
+	CycleDownSignal   key.Binding
+	NavigateUp        key.Binding
+	NavigateDown      key.Binding
+	Bookmark          key.Binding
+	CompactView       key.Binding
+	CompactSort       key.Binding
+	Clipboard         key.Binding
+	JSONPreview       key.Binding
+	DishSpecs         key.Binding
+	CycleTheme        key.Binding
+	CycleDistanceUnit key.Binding
+	IncreaseRefresh   key.Binding
+	DecreaseRefresh   key.Binding
+	Help              key.Binding
+	CloseModal        key.Binding
+	Quit              key.Binding
 }
 
 var Keys = KeyMap{
@@ -76,6 +77,10 @@ var Keys = KeyMap{
 		key.WithKeys("T"),
 		key.WithHelp("T", "cycle theme"),
 	),
+	CycleDistanceUnit: key.NewBinding(
+		key.WithKeys("U"),
+		key.WithHelp("U", "cycle distance unit"),
+	),
 	IncreaseRefresh: key.NewBinding(
 		key.WithKeys("+", "="),
 		key.WithHelp("+", "increase refresh"),
@@ -112,6 +117,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.CycleStation, k.CycleTarget, k.CycleUpSignal, k.CycleDownSignal},
 		{k.NavigateUp, k.NavigateDown, k.Bookmark, k.CompactView},
 		{k.CompactSort, k.Clipboard, k.JSONPreview, k.DishSpecs},
-		{k.IncreaseRefresh, k.DecreaseRefresh, k.Help, k.Quit},
+		{k.CycleTheme, k.CycleDistanceUnit, k.Help},
+		{k.IncreaseRefresh, k.DecreaseRefresh, k.CloseModal, k.Quit},
 	}
 }

@@ -138,6 +138,11 @@ func (d *DishList) Select(index int) {
 	d.list.Select(index)
 }
 
+// VisibleOffset returns the index of the first visible item in the list.
+func (d *DishList) VisibleOffset() int {
+	return d.list.Paginator.Page * d.list.Paginator.PerPage
+}
+
 func (d *DishList) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	d.list, cmd = d.list.Update(msg)

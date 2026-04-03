@@ -7,7 +7,7 @@ import (
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
 )
 
-func RenderUpSignal(signals []model.UpSignal, selectedIdx int, width int) string {
+func RenderUpSignal(signals []model.UpSignal, selectedIdx int, width int, sparkline string) string {
 	arrow := style.SignalUpStyle.Render("↑")
 
 	if len(signals) == 0 {
@@ -33,13 +33,19 @@ func RenderUpSignal(signals []model.UpSignal, selectedIdx int, width int) string
 		activeStr = style.PrimaryStyle.Render("active")
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		style.LabelStyle.Render("Source: ")+style.ValueStyle.Render(source),
-		style.LabelStyle.Render("Is active: ")+activeStr,
-		style.LabelStyle.Render("Signal type: ")+style.ValueStyle.Render(style.DefaultIfEmpty(sig.SignalType, "-")),
-		style.LabelStyle.Render("Frequency band: ")+style.ValueStyle.Render(style.DefaultIfEmpty(sig.Band, "-")),
-		style.LabelStyle.Render("Power transmitted: ")+style.ValueStyle.Render(style.FormatPowerTx(sig.Power)),
-	)
+	rows := []string{
+		style.LabelStyle.Render("Source: ") + style.ValueStyle.Render(source),
+		style.LabelStyle.Render("Is active: ") + activeStr,
+		style.LabelStyle.Render("Signal type: ") + style.ValueStyle.Render(style.DefaultIfEmpty(sig.SignalType, "-")),
+		style.LabelStyle.Render("Frequency band: ") + style.ValueStyle.Render(style.DefaultIfEmpty(sig.Band, "-")),
+		style.LabelStyle.Render("Power transmitted: ") + style.ValueStyle.Render(style.FormatPowerTx(sig.Power)),
+		"", // padding to match down signal height
+	}
+	if sparkline != "" {
+		rows = append(rows, style.MutedStyle.Render(sparkline))
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	borderColor := style.ColorBorder
 	if sig == (model.UpSignal{}) {
@@ -49,7 +55,7 @@ func RenderUpSignal(signals []model.UpSignal, selectedIdx int, width int) string
 	return style.RenderTitledPanel(title, content, width, borderColor)
 }
 
-func RenderDownSignal(signals []model.DownSignal, selectedIdx int, width int) string {
+func RenderDownSignal(signals []model.DownSignal, selectedIdx int, width int, sparkline string) string {
 	arrow := style.SignalDownStyle.Render("↓")
 
 	if len(signals) == 0 {
@@ -75,14 +81,19 @@ func RenderDownSignal(signals []model.DownSignal, selectedIdx int, width int) st
 		activeStr = style.PrimaryStyle.Render("active")
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		style.LabelStyle.Render("Source: ")+style.ValueStyle.Render(source),
-		style.LabelStyle.Render("Is active: ")+activeStr,
-		style.LabelStyle.Render("Signal type: ")+style.ValueStyle.Render(style.DefaultIfEmpty(sig.SignalType, "-")),
-		style.LabelStyle.Render("Frequency band: ")+style.ValueStyle.Render(style.DefaultIfEmpty(sig.Band, "-")),
-		style.LabelStyle.Render("Data rate: ")+style.ValueStyle.Render(style.FormatDataRate(sig.DataRate)),
-		style.LabelStyle.Render("Power received: ")+style.ValueStyle.Render(style.FormatPowerRx(sig.Power)),
-	)
+	rows := []string{
+		style.LabelStyle.Render("Source: ") + style.ValueStyle.Render(source),
+		style.LabelStyle.Render("Is active: ") + activeStr,
+		style.LabelStyle.Render("Signal type: ") + style.ValueStyle.Render(style.DefaultIfEmpty(sig.SignalType, "-")),
+		style.LabelStyle.Render("Frequency band: ") + style.ValueStyle.Render(style.DefaultIfEmpty(sig.Band, "-")),
+		style.LabelStyle.Render("Data rate: ") + style.ValueStyle.Render(style.FormatDataRate(sig.DataRate)),
+		style.LabelStyle.Render("Power received: ") + style.ValueStyle.Render(style.FormatPowerRx(sig.Power)),
+	}
+	if sparkline != "" {
+		rows = append(rows, style.MutedStyle.Render(sparkline))
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
 	borderColor := style.ColorBorder
 	if sig == (model.DownSignal{}) {

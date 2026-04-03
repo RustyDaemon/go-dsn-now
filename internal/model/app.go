@@ -20,10 +20,11 @@ type AppData struct {
 	ConsecutiveErrors     int
 	CompactView           bool
 	CompactSortMode       CompactSortMode
-	Bookmarks             map[string]bool // dish name -> bookmarked
+	Bookmarks             map[string]bool        // dish name -> bookmarked
 	PrevSignalCounts      map[string]signalCount // dish name -> signal counts from last update
 	SignalChanges         []string               // recent signal change notifications
 	DishActiveSince       map[string]time.Time   // dish name -> time when signals first became active
+	SignalHistory         map[string][]float64   // "dishName:down" / "dishName:up" -> recent values
 }
 
 type CompactSortMode int
@@ -71,6 +72,7 @@ func NewAppData() *AppData {
 		PrevSignalCounts:      make(map[string]signalCount),
 		Bookmarks:             make(map[string]bool),
 		DishActiveSince:       make(map[string]time.Time),
+		SignalHistory:         make(map[string][]float64),
 	}
 }
 
