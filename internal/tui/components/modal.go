@@ -148,7 +148,78 @@ func BuildJSONContent(dish model.Dish) string {
 	if err != nil {
 		return "Error formatting JSON"
 	}
-	return string(j)
+	return colorizeJSON(string(j))
+}
+
+func colorizeJSON(s string) string {
+	keyStyle := lipgloss.NewStyle().Foreground(style.ColorPrimary).Bold(true)
+	stringStyle := lipgloss.NewStyle().Foreground(style.ColorSignalDown)
+	numberStyle := lipgloss.NewStyle().Foreground(style.ColorSignalUp)
+	boolStyle := lipgloss.NewStyle().Foreground(style.ColorSecondary).Bold(true)
+	nullStyle := lipgloss.NewStyle().Foreground(style.ColorTextMuted).Italic(true)
+	punctStyle := lipgloss.NewStyle().Foreground(style.ColorTextDim)
+
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		c := s[i]
+		switch {
+		case c == ' ' || c == '\n' || c == '\t' || c == '\r':
+			b.WriteByte(c)
+			i++
+		case c == '"':
+			j := i + 1
+			for j < len(s) {
+				if s[j] == '\\' && j+1 < len(s) {
+					j += 2
+					continue
+				}
+				if s[j] == '"' {
+					j++
+					break
+				}
+				j++
+			}
+			tok := s[i:j]
+			k := j
+			for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
+				k++
+			}
+			if k < len(s) && s[k] == ':' {
+				b.WriteString(keyStyle.Render(tok))
+			} else {
+				b.WriteString(stringStyle.Render(tok))
+			}
+			i = j
+		case c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':':
+			b.WriteString(punctStyle.Render(string(c)))
+			i++
+		case c == '-' || (c >= '0' && c <= '9'):
+			j := i + 1
+			for j < len(s) {
+				ch := s[j]
+				if ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-' || (ch >= '0' && ch <= '9') {
+					j++
+					continue
+				}
+				break
+			}
+			b.WriteString(numberStyle.Render(s[i:j]))
+			i = j
+		case strings.HasPrefix(s[i:], "true"):
+			b.WriteString(boolStyle.Render("true"))
+			i += 4
+		case strings.HasPrefix(s[i:], "false"):
+			b.WriteString(boolStyle.Render("false"))
+			i += 5
+		case strings.HasPrefix(s[i:], "null"):
+			b.WriteString(nullStyle.Render("null"))
+			i += 4
+		default:
+			b.WriteByte(c)
+			i++
+		}
+	}
+	return b.String()
 }
 
 func BuildHelpContent(version, githubURL string) string {
