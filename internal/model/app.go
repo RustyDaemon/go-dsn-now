@@ -1,57 +1,17 @@
 package model
 
-import (
-	"time"
-
-	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
-)
+import "time"
 
 type AppData struct {
-	IsReady               bool
-	SelectedStationIdx    int
-	SelectedDishIdx       int
-	SelectedTargetIdx     int
-	SelectedUpSignalIdx   int
-	SelectedDownSignalIdx int
-	FullData              FullData
-	DSNConfig             response.DSNConfig
-	LastError             string
-	LastUpdated           time.Time
-	ConsecutiveErrors     int
-	CompactView           bool
-	CompactSortMode       CompactSortMode
-	Bookmarks             map[string]bool
-	PrevSignalCounts      map[string]signalCount
-	SignalChanges         []string
-	DishActiveSince       map[string]time.Time
-	SignalHistory         map[string][]float64
-}
-
-type CompactSortMode int
-
-const (
-	CompactSortDefault CompactSortMode = iota
-	CompactSortByActivity
-	CompactSortBySignalCount
-	CompactSortByTarget
-	compactSortModeCount
-)
-
-func (data *AppData) CycleCompactSortMode() {
-	data.CompactSortMode = (data.CompactSortMode + 1) % compactSortModeCount
-}
-
-func (data *AppData) CompactSortModeLabel() string {
-	switch data.CompactSortMode {
-	case CompactSortByActivity:
-		return "Activity"
-	case CompactSortBySignalCount:
-		return "Signals"
-	case CompactSortByTarget:
-		return "Target"
-	default:
-		return "Default"
-	}
+	FullData          FullData
+	LastError         string
+	LastUpdated       time.Time
+	ConsecutiveErrors int
+	Bookmarks         map[string]bool
+	PrevSignalCounts  map[string]signalCount
+	SignalChanges     []string
+	DishActiveSince   map[string]time.Time
+	SignalHistory     map[string][]float64
 }
 
 type signalCount struct {
@@ -61,58 +21,12 @@ type signalCount struct {
 
 func NewAppData() *AppData {
 	return &AppData{
-		IsReady:               false,
-		SelectedStationIdx:    -1,
-		SelectedDishIdx:       0,
-		SelectedTargetIdx:     0,
-		SelectedUpSignalIdx:   0,
-		SelectedDownSignalIdx: 0,
-		DSNConfig:             response.DSNConfig{},
-		FullData:              FullData{},
-		PrevSignalCounts:      make(map[string]signalCount),
-		Bookmarks:             make(map[string]bool),
-		DishActiveSince:       make(map[string]time.Time),
-		SignalHistory:         make(map[string][]float64),
+		FullData:         FullData{},
+		PrevSignalCounts: make(map[string]signalCount),
+		Bookmarks:        make(map[string]bool),
+		DishActiveSince:  make(map[string]time.Time),
+		SignalHistory:    make(map[string][]float64),
 	}
-}
-
-
-func (data *AppData) GetSelectedDish() (res Dish, ok bool) {
-	if data.SelectedStationIdx < 0 || data.SelectedDishIdx < 0 {
-		return Dish{}, false
-	}
-
-	selectedStation := data.FullData.Stations[data.SelectedStationIdx]
-	dish := selectedStation.Dishes[data.SelectedDishIdx]
-
-	return dish, true
-}
-
-func (data *AppData) GetDownSignals() (res []DownSignal, ok bool) {
-	dish, ok := data.GetSelectedDish()
-	if !ok {
-		return []DownSignal{}, false
-	}
-
-	return dish.DownSignals, true
-}
-
-func (data *AppData) GetUpSignals() (res []UpSignal, ok bool) {
-	dish, ok := data.GetSelectedDish()
-	if !ok {
-		return []UpSignal{}, false
-	}
-
-	return dish.UpSignals, true
-}
-
-func (data *AppData) GetTargets() (res []Target, ok bool) {
-	dish, ok := data.GetSelectedDish()
-	if !ok {
-		return []Target{}, false
-	}
-
-	return dish.Targets, true
 }
 
 func (data *AppData) DetectSignalChanges() {
