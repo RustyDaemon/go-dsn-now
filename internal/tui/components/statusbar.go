@@ -13,7 +13,6 @@ type StatusBarParams struct {
 	HasTargets      bool
 	HasUpSignals    bool
 	HasDownSignals  bool
-	HasAntennaSpec  bool
 	LastUpdated     string
 	LastError       string
 	ConnStatus      string
@@ -78,10 +77,6 @@ func (s StatusBar) renderLeft(p StatusBarParams) string {
 	if p.HasDownSignals {
 		parts = append(parts, style.PrimaryStyle.Render("d")+"own")
 	}
-	if p.HasAntennaSpec {
-		parts = append(parts, style.PrimaryStyle.Render("i")+"nfo")
-	}
-	parts = append(parts, style.PrimaryStyle.Render("J")+"SON")
 	parts = append(parts, style.PrimaryStyle.Render("?"))
 	parts = append(parts, style.PrimaryStyle.Render("q")+"uit")
 
@@ -127,4 +122,3 @@ func (s StatusBar) renderRight(p StatusBarParams) string {
 
 	return " " + strings.Join(parts, " ") + " "
 }
-

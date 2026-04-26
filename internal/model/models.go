@@ -65,7 +65,6 @@ type Dish struct {
 	UpSignals      []UpSignal
 	DownSignals    []DownSignal
 	Targets        []Target
-	Specs          DishSpecification
 }
 
 func (d *Dish) CountWorkingUpSignals() int {

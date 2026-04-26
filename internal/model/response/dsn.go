@@ -1,7 +1,5 @@
 package response
 
-import "strings"
-
 type DSN struct {
 	Timestamp string    `xml:"timestamp"`
 	Stations  []Station `xml:"station"`
@@ -13,24 +11,6 @@ type Station struct {
 	FriendlyName   string `xml:"friendlyName,attr"`
 	TimeUTC        string `xml:"timeUTC,attr"`
 	TimeZoneOffset string `xml:"timeZoneOffset,attr"`
-}
-
-func (s *Station) GetStationFlag() string {
-	name := s.FriendlyName
-
-	if strings.EqualFold(name, "madrid") {
-		return "\U0001F1EA\U0001F1F8"
-	}
-
-	if strings.EqualFold(name, "goldstone") {
-		return "\U0001F1FA\U0001F1F8"
-	}
-
-	if strings.EqualFold(name, "canberra") {
-		return "\U0001F1E6\U0001F1FA"
-	}
-
-	return ""
 }
 
 type Dish struct {

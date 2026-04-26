@@ -15,7 +15,7 @@ The DSN is a global system of large antennas and communication facilities used t
 - **Signal details.** Observe signal strength, frequency, data rate, and modulation type for up and down links.
 - **Signal sparklines.** Scrolling mini-charts show recent signal activity per dish.
 - **Interactive navigation.** Select stations, antennas, targets, and signals.
-- **Themes.** Cycle through 6 built-in color themes: cosmic, phosphor, solar, nord, dracula, and amber.
+- **Themes.** Cycle through 3 built-in color themes: cosmic, solar, and nord.
 - **Bookmarks.** Star dishes of interest. Bookmarks persist across sessions.
 - **Compact view.** Toggle between a detailed view and a compact table with sortable columns.
 - **Distance units.** Cycle between km, AU, light-minutes, and light-hours.
@@ -37,8 +37,6 @@ The DSN is a global system of large antennas and communication facilities used t
 | `T`       | Cycle through themes            |
 | `U`       | Cycle distance unit             |
 | `y`       | Copy visible content to clipboard |
-| `J`       | Show JSON preview               |
-| `i`       | Show antenna specifications     |
 | `+` `-`   | Adjust refresh interval         |
 | `?`       | Show help                       |
 | `Esc`     | Close modal                     |

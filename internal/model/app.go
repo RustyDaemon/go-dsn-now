@@ -148,13 +148,3 @@ func (data *AppData) DetectSignalChanges() {
 		}
 	}
 }
-
-
-func (data *AppData) HasAntennaSpecs() bool {
-	dish, ok := data.GetSelectedDish()
-	if !ok {
-		return false
-	}
-
-	return dish.Specs != (DishSpecification{})
-}

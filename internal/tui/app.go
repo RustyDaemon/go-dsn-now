@@ -280,22 +280,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y":
 		text := m.getVisibleContent()
 		return m, copyToClipboard(text)
-	case "J":
-		dish, ok := m.appData.GetSelectedDish()
-		if ok {
-			m.activeModal = components.ModalJSONPreview
-			content := components.BuildJSONContent(dish)
-			m.modal.SetContent("JSON Preview", content)
-			m.modal.SetSize(m.width, m.height-3)
-		}
-	case "i":
-		dish, ok := m.appData.GetSelectedDish()
-		if ok && dish.Specs != (model.DishSpecification{}) {
-			m.activeModal = components.ModalDishSpecs
-			content := components.BuildDishSpecsContent(dish.Specs)
-			m.modal.SetContent("Antenna Specification", content)
-			m.modal.SetSize(m.width, m.height-3)
-		}
 	case "+", "=":
 		newInterval := m.cfg.RefreshInterval + 5*time.Second
 		m.cfg.RefreshInterval = newInterval
@@ -673,7 +657,6 @@ func (m Model) buildStatusParams() components.StatusBarParams {
 		if downSignals, ok := m.appData.GetDownSignals(); ok {
 			p.HasDownSignals = len(downSignals) > 1
 		}
-		p.HasAntennaSpec = m.appData.HasAntennaSpecs()
 	}
 
 	return p

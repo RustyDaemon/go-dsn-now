@@ -13,8 +13,6 @@ type KeyMap struct {
 	CompactView       key.Binding
 	CompactSort       key.Binding
 	Clipboard         key.Binding
-	JSONPreview       key.Binding
-	DishSpecs         key.Binding
 	CycleTheme        key.Binding
 	CycleDistanceUnit key.Binding
 	IncreaseRefresh   key.Binding
@@ -65,14 +63,6 @@ var Keys = KeyMap{
 		key.WithKeys("y"),
 		key.WithHelp("y", "copy to clipboard"),
 	),
-	JSONPreview: key.NewBinding(
-		key.WithKeys("J"),
-		key.WithHelp("J", "JSON preview"),
-	),
-	DishSpecs: key.NewBinding(
-		key.WithKeys("i"),
-		key.WithHelp("i", "antenna specs"),
-	),
 	CycleTheme: key.NewBinding(
 		key.WithKeys("T"),
 		key.WithHelp("T", "cycle theme"),
@@ -114,8 +104,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.CycleStation, k.CycleTarget, k.CycleUpSignal, k.CycleDownSignal},
 		{k.NavigateUp, k.NavigateDown, k.Bookmark, k.CompactView},
-		{k.CompactSort, k.Clipboard, k.JSONPreview, k.DishSpecs},
-		{k.CycleTheme, k.CycleDistanceUnit, k.Help},
-		{k.IncreaseRefresh, k.DecreaseRefresh, k.CloseModal, k.Quit},
+		{k.CompactSort, k.Clipboard, k.CycleTheme, k.CycleDistanceUnit},
+		{k.IncreaseRefresh, k.DecreaseRefresh, k.Help, k.CloseModal},
+		{k.Quit},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/RustyDaemon/go-dsn-now/internal/model"
 	"github.com/RustyDaemon/go-dsn-now/internal/model/response"
 	"strconv"
+	"strings"
 )
 
 func MapConfigToFullData(c response.DSNConfig, dest *model.FullData) {
@@ -21,6 +22,7 @@ func MapConfigToFullData(c response.DSNConfig, dest *model.FullData) {
 			FriendlyName: s.FriendlyName,
 			Longitude:    s.Longitude,
 			Latitude:     s.Latitude,
+			Flag:         stationFlag(s.Name, s.FriendlyName),
 			Dishes:       convertDishes(s.Dishes),
 		})
 	}
@@ -34,7 +36,7 @@ func MapDataToFullData(d response.DSN, dest *model.FullData) {
 		if sn.Name != "" {
 			sn.TimeUTC = s.TimeUTC
 			sn.TimeZoneOffset = s.TimeZoneOffset
-			sn.Flag = s.GetStationFlag()
+			sn.Flag = stationFlag(s.Name, s.FriendlyName)
 		}
 	}
 
@@ -64,7 +66,6 @@ func MapDataToFullData(d response.DSN, dest *model.FullData) {
 			dn.DownSignals = convertDownSignals(d.DownSignals, dest)
 			dn.UpSignals = convertUpSignals(d.UpSignals, dest)
 			dn.Targets = convertTargets(d.Target, dest)
-			dn.Specs = dn.GetDishSpecification()
 		}
 	}
 }
@@ -142,4 +143,19 @@ func convertDishes(dishes []response.DSNConfigSiteDish) []model.Dish {
 		})
 	}
 	return result
+}
+
+func stationFlag(name, friendlyName string) string {
+	for _, value := range []string{name, friendlyName} {
+		switch strings.ToLower(value) {
+		case "goldstone", "gdscc":
+			return "\U0001F1FA\U0001F1F8"
+		case "madrid", "mdscc":
+			return "\U0001F1EA\U0001F1F8"
+		case "canberra", "cdscc":
+			return "\U0001F1E6\U0001F1FA"
+		}
+	}
+
+	return ""
 }

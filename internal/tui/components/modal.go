@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"encoding/json"
-
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/RustyDaemon/go-dsn-now/internal/model"
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
 )
 
@@ -19,8 +16,6 @@ type ModalType int
 const (
 	ModalNone ModalType = iota
 	ModalHelp
-	ModalJSONPreview
-	ModalDishSpecs
 )
 
 type Modal struct {
@@ -143,85 +138,6 @@ func (m Modal) View() string {
 	)
 }
 
-func BuildJSONContent(dish model.Dish) string {
-	j, err := json.MarshalIndent(dish, "", "  ")
-	if err != nil {
-		return "Error formatting JSON"
-	}
-	return colorizeJSON(string(j))
-}
-
-func colorizeJSON(s string) string {
-	keyStyle := lipgloss.NewStyle().Foreground(style.ColorPrimary).Bold(true)
-	stringStyle := lipgloss.NewStyle().Foreground(style.ColorSignalDown)
-	numberStyle := lipgloss.NewStyle().Foreground(style.ColorSignalUp)
-	boolStyle := lipgloss.NewStyle().Foreground(style.ColorSecondary).Bold(true)
-	nullStyle := lipgloss.NewStyle().Foreground(style.ColorTextMuted).Italic(true)
-	punctStyle := lipgloss.NewStyle().Foreground(style.ColorTextDim)
-
-	var b strings.Builder
-	for i := 0; i < len(s); {
-		c := s[i]
-		switch {
-		case c == ' ' || c == '\n' || c == '\t' || c == '\r':
-			b.WriteByte(c)
-			i++
-		case c == '"':
-			j := i + 1
-			for j < len(s) {
-				if s[j] == '\\' && j+1 < len(s) {
-					j += 2
-					continue
-				}
-				if s[j] == '"' {
-					j++
-					break
-				}
-				j++
-			}
-			tok := s[i:j]
-			k := j
-			for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
-				k++
-			}
-			if k < len(s) && s[k] == ':' {
-				b.WriteString(keyStyle.Render(tok))
-			} else {
-				b.WriteString(stringStyle.Render(tok))
-			}
-			i = j
-		case c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':':
-			b.WriteString(punctStyle.Render(string(c)))
-			i++
-		case c == '-' || (c >= '0' && c <= '9'):
-			j := i + 1
-			for j < len(s) {
-				ch := s[j]
-				if ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-' || (ch >= '0' && ch <= '9') {
-					j++
-					continue
-				}
-				break
-			}
-			b.WriteString(numberStyle.Render(s[i:j]))
-			i = j
-		case strings.HasPrefix(s[i:], "true"):
-			b.WriteString(boolStyle.Render("true"))
-			i += 4
-		case strings.HasPrefix(s[i:], "false"):
-			b.WriteString(boolStyle.Render("false"))
-			i += 5
-		case strings.HasPrefix(s[i:], "null"):
-			b.WriteString(nullStyle.Render("null"))
-			i += 4
-		default:
-			b.WriteByte(c)
-			i++
-		}
-	}
-	return b.String()
-}
-
 func BuildHelpContent(version, githubURL string) string {
 	var b strings.Builder
 	b.WriteString(style.TitleStyle.Render("Keybindings") + "\n\n")
@@ -238,8 +154,6 @@ func BuildHelpContent(version, githubURL string) string {
 		{"T", "Cycle theme"},
 		{"U", "Cycle distance unit"},
 		{"y", "Copy to clipboard"},
-		{"J", "JSON preview"},
-		{"i", "Antenna specs"},
 		{"+ -", "Adjust refresh interval"},
 		{"?", "This help"},
 		{"Esc", "Close modal"},
@@ -256,45 +170,6 @@ func BuildHelpContent(version, githubURL string) string {
 	b.WriteString("\n" + style.TitleStyle.Render("About") + "\n\n")
 	fmt.Fprintf(&b, "  Version  %s\n", style.ValueStyle.Render(version))
 	fmt.Fprintf(&b, "  GitHub   %s\n", style.ValueStyle.Render(githubURL))
-
-	return b.String()
-}
-
-func BuildDishSpecsContent(spec model.DishSpecification) string {
-	var b strings.Builder
-
-	fields := []struct{ label, value string }{
-		{"Name", spec.Name},
-		{"Type", spec.Type},
-		{"Diameter", spec.Diameter},
-		{"", ""},
-		{"Transmitters frequency", spec.TransmittersFrequency},
-		{"Receivers frequency", spec.ReceiversFrequency},
-		{"Transmitters power", spec.TransmittersPower},
-		{"Precision", spec.Precision},
-		{"Antenna speed", spec.AntennaSpeed},
-		{"", ""},
-		{"Total weight", spec.TotalWeight},
-		{"Dish weight", spec.DishWeight},
-		{"Total panels", spec.TotalPanels},
-		{"Surface area", spec.SurfaceArea},
-		{"", ""},
-		{"Operational wind resistance", spec.OperationalWindResistance},
-		{"Max wind resistance", spec.WindResistance},
-		{"Built in", spec.BuiltIn},
-		{"Web URL", spec.WebUrl},
-	}
-
-	for _, f := range fields {
-		if f.label == "" {
-			b.WriteString("\n")
-			continue
-		}
-		fmt.Fprintf(&b, "  %-30s %s\n",
-			style.LabelStyle.Render(f.label+":"),
-			style.ValueStyle.Render(style.DashIfEmpty(f.value)),
-		)
-	}
 
 	return b.String()
 }
