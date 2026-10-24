@@ -27,11 +27,14 @@ The DSN is a global system of large antennas and communication facilities used t
 
 ## Installation
 
-0. Requires [Go](https://go.dev/) to be installed
-1. Install: `go install github.com/RustyDaemon/go-dsn-now@latest`
-2. Run: `go-dsn-now`
+Download a binary from the [latest release](https://github.com/RustyDaemon/go-dsn-now/releases/latest). No Go installation is required.
 
-> **Note:** If you get `command not found`, make sure `$GOPATH/bin` is in your `PATH`. Run `go env GOPATH` to find it.
+Alternatively, with [Go](https://go.dev/) installed:
+
+```sh
+go install github.com/RustyDaemon/go-dsn-now@latest
+go-dsn-now
+```
 
 ## License
 
