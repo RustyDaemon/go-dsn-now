@@ -59,12 +59,6 @@ func tickRefresh(interval time.Duration) tea.Cmd {
 	})
 }
 
-func tickClock() tea.Cmd {
-	return tea.Every(time.Second, func(t time.Time) tea.Msg {
-		return TickClockMsg(t)
-	})
-}
-
 func copyToClipboard(text string) tea.Cmd {
 	return func() tea.Msg {
 		err := clipboard.WriteAll(text)

@@ -143,6 +143,10 @@ func BuildHelpContent(version, githubURL string) string {
 	b.WriteString(style.TitleStyle.Render("Keybindings") + "\n\n")
 
 	keys := []struct{ key, desc string }{
+		{"/", "Search all stations, dishes, and spacecraft (live results)"},
+		{"Enter", "Apply search / open highlighted dish details"},
+		{"a", "Toggle active signals only"},
+		{"f", "Toggle bookmarked dishes only"},
 		{"s", "Cycle station"},
 		{"t", "Cycle target"},
 		{"u", "Cycle up signal"},
@@ -156,16 +160,17 @@ func BuildHelpContent(version, githubURL string) string {
 		{"y", "Copy to clipboard"},
 		{"+ -", "Adjust refresh interval"},
 		{"?", "This help"},
-		{"Esc", "Close modal"},
+		{"Esc", "Cancel search edit / clear filters / close help"},
 		{"q", "Quit"},
 	}
-
 	for _, k := range keys {
 		fmt.Fprintf(&b, "  %s  %s\n",
 			style.PrimaryStyle.Render(fmt.Sprintf("%-6s", k.key)),
 			style.LabelStyle.Render(k.desc),
 		)
 	}
+	b.WriteString("\nFilters combine and apply in both views. Active means an active uplink or downlink.\n")
+	b.WriteString("During startup, press r to retry a failed request.\n")
 
 	b.WriteString("\n" + style.TitleStyle.Render("About") + "\n\n")
 	fmt.Fprintf(&b, "  Version  %s\n", style.ValueStyle.Render(version))

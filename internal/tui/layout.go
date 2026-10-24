@@ -9,7 +9,7 @@ func (m Model) leftPanelWidth() int {
 }
 
 func (m Model) mainHeight() int {
-	return m.ui.height - 3
+	return max(1, m.ui.height-4) // filter bar and status panel
 }
 
 func (m *Model) resizeComponents() {
@@ -31,4 +31,5 @@ func (m *Model) resizeComponents() {
 	m.statusBar.SetWidth(m.ui.width)
 	m.compactTable.SetSize(m.ui.width, mainHeight)
 	m.modal.SetSize(m.ui.width, m.ui.height-3)
+	m.search.Width = max(1, m.ui.width-34)
 }

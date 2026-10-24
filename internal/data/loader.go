@@ -30,11 +30,23 @@ func LoadDSNConfig(ctx context.Context, client *http.Client, cfg *config.Config,
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		ce <- fmt.Errorf("HTTP %s", resp.Status)
+		return
+	}
 
 	dsnConfig := response.DSNConfig{}
 	err = xml.NewDecoder(resp.Body).Decode(&dsnConfig)
 	if err != nil {
-		ce <- err
+		ce <- fmt.Errorf("invalid configuration XML: %w", err)
+		return
+	}
+	dishes := 0
+	for _, site := range dsnConfig.Sites {
+		dishes += len(site.Dishes)
+	}
+	if dishes == 0 {
+		ce <- fmt.Errorf("configuration contains no dishes")
 		return
 	}
 
@@ -57,11 +69,19 @@ func LoadDSNData(ctx context.Context, client *http.Client, cfg *config.Config, r
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		ce <- fmt.Errorf("HTTP %s", resp.Status)
+		return
+	}
 
 	var dsn response.DSN
 	err = xml.NewDecoder(resp.Body).Decode(&dsn)
 	if err != nil {
-		ce <- err
+		ce <- fmt.Errorf("invalid live data XML: %w", err)
+		return
+	}
+	if len(dsn.D) == 0 {
+		ce <- fmt.Errorf("live data contains no dishes")
 		return
 	}
 

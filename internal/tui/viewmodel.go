@@ -30,18 +30,31 @@ func (m *Model) refreshCompactTable() {
 
 	m.compactTable.SetSortLabel(m.ui.compactSort.label())
 	m.compactTable.SetRows(rows)
+	if station, ok := m.selectedStation(); ok {
+		if dish, ok := m.selectedDish(); ok {
+			m.compactTable.SelectDish(station.Name, dish.Name)
+		}
+	}
+	m.selectCompactDish()
+	m.refreshDishList()
 }
 
 func (m Model) buildCompactRows() []components.CompactRow {
 	var rows []components.CompactRow
 	for _, station := range m.appData.FullData.Stations {
 		for _, dish := range station.Dishes {
+			if !m.matchesDish(station, dish) {
+				continue
+			}
 			target := "-"
 			if len(dish.Targets) > 0 && dish.Targets[0].Spacecraft.FriendlyName != "" {
 				target = dish.Targets[0].Spacecraft.FriendlyName
 			}
 
 			rows = append(rows, components.CompactRow{
+				StationID:   station.Name,
+				DishID:      dish.Name,
+				Bookmarked:  m.appData.Bookmarks[dish.Name],
 				Station:     station.FriendlyName,
 				Dish:        dish.FriendlyName,
 				Target:      target,
@@ -69,6 +82,7 @@ func (m Model) buildStatusParams() components.StatusBarParams {
 
 	params := components.StatusBarParams{
 		DefaultStatus:   m.ui.activeModal == components.ModalNone,
+		Compact:         m.useCompactView(),
 		LastError:       m.appData.LastError,
 		ConnStatus:      connStatus,
 		SignalChanges:   m.appData.SignalChanges,

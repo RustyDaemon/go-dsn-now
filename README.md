@@ -18,29 +18,12 @@ The DSN is a global system of large antennas and communication facilities used t
 - **Themes.** Cycle through 3 built-in color themes: cosmic, solar, and nord.
 - **Bookmarks.** Star dishes of interest. Bookmarks persist across sessions.
 - **Compact view.** Toggle between a detailed view and a compact table with sortable columns.
+- **Search and filters.** Search stations, dishes, and spacecraft across the network. Combine active-only and bookmarked-only filters in either view.
+- **Consistent selection.** Open compact rows in the detail view; selection stays on the same dish through sorting and updates.
+- **Startup recovery.** See configuration and feed errors, then retry without restarting.
 - **Distance units.** Cycle between km, AU, light-minutes, and light-hours.
 - **Signal notifications.** Status bar alerts when signals are acquired or lost.
 - **Connection indicator.** Colored dot shows whether the feed is connected, degraded, or disconnected.
-
-## Keyboard Shortcuts
-
-| Key       | Action                          |
-| --------- | ------------------------------- |
-| `s`       | Cycle through stations          |
-| `t`       | Cycle through targets           |
-| `u`       | Cycle through up signals        |
-| `d`       | Cycle through down signals      |
-| `↑` `↓`   | Navigate dishes list            |
-| `b`       | Toggle bookmark on current dish |
-| `c`       | Toggle compact view             |
-| `S`       | Cycle compact sort mode         |
-| `T`       | Cycle through themes            |
-| `U`       | Cycle distance unit             |
-| `y`       | Copy visible content to clipboard |
-| `+` `-`   | Adjust refresh interval         |
-| `?`       | Show help                       |
-| `Esc`     | Close modal                     |
-| `q`       | Quit                            |
 
 ## Installation
 

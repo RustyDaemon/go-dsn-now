@@ -40,16 +40,23 @@ type uiState struct {
 	width  int
 	height int
 
-	ready         bool
-	compactView   bool
-	compactSort   compactSortMode
-	activeModal   components.ModalType
-	statusMessage string
-	selection     selectionState
+	ready          bool
+	loading        bool
+	configLoaded   bool
+	searchEditing  bool
+	searchBefore   string
+	activeOnly     bool
+	bookmarkedOnly bool
+	compactView    bool
+	compactSort    compactSortMode
+	activeModal    components.ModalType
+	statusMessage  string
+	selection      selectionState
 }
 
 func newUIState() uiState {
 	return uiState{
+		loading:     true,
 		activeModal: components.ModalNone,
 		selection: selectionState{
 			station: -1,

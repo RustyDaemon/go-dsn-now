@@ -3,7 +3,9 @@ package tui
 import (
 	"net/http"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -28,12 +30,18 @@ type Model struct {
 	compactTable components.CompactTable
 	modal        components.Modal
 	spinner      spinner.Model
+	search       textinput.Model
 }
 
 func NewModel(cfg *config.Config, settings *data.Settings, client *http.Client, appData *model.AppData) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(style.ColorPrimary)
+	search := textinput.New()
+	search.Prompt = "Search: "
+	search.Placeholder = "station, dish, or spacecraft"
+	search.CharLimit = 128
+	search.Cursor.SetMode(cursor.CursorStatic)
 
 	return Model{
 		cfg:          cfg,
@@ -47,6 +55,7 @@ func NewModel(cfg *config.Config, settings *data.Settings, client *http.Client, 
 		compactTable: components.NewCompactTable(),
 		modal:        components.NewModal(),
 		spinner:      sp,
+		search:       search,
 	}
 }
 
@@ -54,7 +63,6 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
 		loadDSNConfig(m.httpClient, m.cfg),
-		tickClock(),
 	)
 }
 
@@ -69,6 +77,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	default:
+		if m.ui.searchEditing {
+			before := m.search.Value()
+			var cmd tea.Cmd
+			m.search, cmd = m.search.Update(msg)
+			if m.search.Value() != before {
+				m.refreshCompactTable()
+			}
+			return m, cmd
+		}
 		return m, nil
 	}
 }

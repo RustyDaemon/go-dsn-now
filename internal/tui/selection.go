@@ -75,11 +75,6 @@ func (m *Model) clampSelection() {
 	}
 }
 
-func (m *Model) resetDishSelection() {
-	m.ui.selection.dish = 0
-	m.resetDishDependents()
-}
-
 func (m *Model) resetDishDependents() {
 	m.ui.selection.target = 0
 	m.ui.selection.upSignal = 0
@@ -87,7 +82,48 @@ func (m *Model) resetDishDependents() {
 }
 
 func (m *Model) syncDishListSelection() {
-	m.dishList.Select(m.ui.selection.dish)
+	for i, index := range m.visibleDishIndices() {
+		if index == m.ui.selection.dish {
+			m.dishList.Select(i)
+			return
+		}
+	}
+}
+
+func (m *Model) selectVisibleDish(index int) {
+	indices := m.visibleDishIndices()
+	if index >= 0 && index < len(indices) {
+		m.selectDish(indices[index])
+	}
+}
+
+func (m *Model) syncCompactCursor() {
+	station, stationOK := m.selectedStation()
+	dish, dishOK := m.selectedDish()
+	if stationOK && dishOK {
+		m.compactTable.SelectDish(station.Name, dish.Name)
+	}
+}
+
+func (m *Model) selectCompactDish() {
+	row, ok := m.compactTable.SelectedRow()
+	if !ok {
+		m.ui.selection = selectionState{station: -1}
+		return
+	}
+	for i, station := range m.appData.FullData.Stations {
+		if station.Name != row.StationID {
+			continue
+		}
+		for j, dish := range station.Dishes {
+			if dish.Name == row.DishID {
+				if m.ui.selection.station != i || m.ui.selection.dish != j {
+					m.ui.selection = selectionState{station: i, dish: j}
+				}
+				return
+			}
+		}
+	}
 }
 
 func (m *Model) selectDish(index int) {
@@ -102,6 +138,7 @@ func (m *Model) selectDish(index int) {
 	}
 
 	m.syncDishListSelection()
+	m.syncCompactCursor()
 }
 
 func (m *Model) cycleStation() {
@@ -110,10 +147,18 @@ func (m *Model) cycleStation() {
 		return
 	}
 
-	m.ui.selection.station = (m.ui.selection.station + 1) % len(stations)
-	m.resetDishSelection()
-	m.prefs.setLastStation(stations[m.ui.selection.station].FriendlyName)
-	m.refreshDishList()
+	for offset := 1; offset <= len(stations); offset++ {
+		index := (m.ui.selection.station + offset) % len(stations)
+		for j, dish := range stations[index].Dishes {
+			if m.matchesDish(stations[index], dish) {
+				m.ui.selection = selectionState{station: index, dish: j}
+				m.prefs.setLastStation(stations[index].FriendlyName)
+				m.refreshDishList()
+				m.syncCompactCursor()
+				return
+			}
+		}
+	}
 }
 
 func (m *Model) cycleTarget() {
@@ -144,31 +189,30 @@ func (m *Model) cycleDownSignal() {
 }
 
 func (m *Model) navigateDish(direction int) {
-	station, ok := m.selectedStation()
-	if !ok || len(station.Dishes) == 0 {
+	indices := m.visibleDishIndices()
+	if len(indices) == 0 {
 		return
 	}
-
-	newIdx := m.ui.selection.dish + direction
-	if newIdx < 0 {
-		newIdx = len(station.Dishes) - 1
-	} else if newIdx >= len(station.Dishes) {
-		newIdx = 0
+	for i, index := range indices {
+		if index == m.ui.selection.dish {
+			m.selectDish(indices[(i+direction+len(indices))%len(indices)])
+			return
+		}
 	}
-
-	m.selectDish(newIdx)
 }
 
 func (m *Model) refreshDishList() {
 	station, ok := m.selectedStation()
 	if !ok {
+		m.dishList.SetItems(nil, m.appData.Bookmarks)
 		return
 	}
 
-	m.dishList.SetItems(station.Dishes, m.appData.Bookmarks)
-	if m.ui.selection.dish >= len(station.Dishes) {
-		m.ui.selection.dish = 0
+	var dishes []model.Dish
+	for _, index := range m.visibleDishIndices() {
+		dishes = append(dishes, station.Dishes[index])
 	}
+	m.dishList.SetItems(dishes, m.appData.Bookmarks)
 	m.syncDishListSelection()
 }
 

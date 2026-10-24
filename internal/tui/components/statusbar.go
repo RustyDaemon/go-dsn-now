@@ -4,12 +4,14 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
 )
 
 type StatusBarParams struct {
 	DefaultStatus   bool
+	Compact         bool
 	HasTargets      bool
 	HasUpSignals    bool
 	HasDownSignals  bool
@@ -44,13 +46,16 @@ func (s StatusBar) View(p StatusBarParams) string {
 		innerWidth = 10
 	}
 
+	right = ansi.Truncate(right, innerWidth, "…")
 	rightWidth := lipgloss.Width(right)
+	center = ansi.Truncate(center, innerWidth-rightWidth, "…")
 	centerWidth := lipgloss.Width(center)
 
 	leftWidth := innerWidth - rightWidth - centerWidth
 	if leftWidth < 0 {
 		leftWidth = 0
 	}
+	left = ansi.Truncate(left, leftWidth, "…")
 
 	bar := lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(leftWidth).Render(left),
@@ -64,6 +69,9 @@ func (s StatusBar) View(p StatusBarParams) string {
 func (s StatusBar) renderLeft(p StatusBarParams) string {
 	if !p.DefaultStatus {
 		return style.PrimaryStyle.Render("(Esc)") + " close"
+	}
+	if p.Compact {
+		return style.PrimaryStyle.Render("Enter") + " details " + style.PrimaryStyle.Render("b") + " star " + style.PrimaryStyle.Render("c") + " view " + style.PrimaryStyle.Render("?") + " " + style.PrimaryStyle.Render("q") + "uit"
 	}
 
 	var parts []string

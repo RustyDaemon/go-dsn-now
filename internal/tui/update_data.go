@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/data"
+	"github.com/RustyDaemon/go-dsn-now/internal/model"
 )
 
 func (m Model) handleDataMessage(msg tea.Msg) (Model, tea.Cmd, bool) {
@@ -18,35 +19,42 @@ func (m Model) handleDataMessage(msg tea.Msg) (Model, tea.Cmd, bool) {
 		m.resizeComponents()
 		return m, nil, true
 	case spinner.TickMsg:
-		if !m.ui.ready {
+		if !m.ui.ready && m.ui.loading {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd, true
 		}
 		return m, nil, true
 	case DSNConfigLoadedMsg:
+		m.appData.FullData = model.FullData{}
 		data.MapConfigToFullData(msg.Config, &m.appData.FullData)
+		m.ui.configLoaded = true
+		m.ui.loading = true
+		m.appData.LastError = ""
 		m.restoreInitialStationSelection()
 		m.resizeComponents()
-		return m, tea.Batch(
-			loadDSNData(m.httpClient, m.cfg),
-			tickRefresh(m.cfg.RefreshInterval),
-		), true
+		return m, loadDSNData(m.httpClient, m.cfg), true
 	case DSNConfigErrorMsg:
-		return m, tea.Quit, true
-	case DSNDataLoadedMsg:
-		m.applyLoadedData(msg)
+		m.ui.loading = false
+		m.appData.LastError = "Could not load NASA configuration: " + msg.Err.Error()
 		return m, nil, true
+	case DSNDataLoadedMsg:
+		m.ui.loading = false
+		m.applyLoadedData(msg)
+		return m, tickRefresh(m.cfg.RefreshInterval), true
 	case DSNDataErrorMsg:
-		m.appData.LastError = msg.Err.Error()
+		m.ui.loading = false
+		m.appData.LastError = "Could not load NASA live data: " + msg.Err.Error()
 		m.appData.ConsecutiveErrors++
+		if m.ui.ready {
+			return m, tickRefresh(m.cfg.RefreshInterval), true
+		}
 		return m, nil, true
 	case TickRefreshMsg:
-		return m, tea.Batch(
-			loadDSNData(m.httpClient, m.cfg),
-			tickRefresh(m.cfg.RefreshInterval),
-		), true
-	case TickClockMsg:
+		if !m.ui.loading {
+			m.ui.loading = true
+			return m, loadDSNData(m.httpClient, m.cfg), true
+		}
 		return m, nil, true
 	case CopyResultMsg:
 		if msg.Err != nil {
@@ -78,7 +86,6 @@ func (m *Model) applyLoadedData(msg DSNDataLoadedMsg) {
 	m.restoreInitialStationSelection()
 	m.clampSelection()
 	m.appData.DetectSignalChanges()
-	m.refreshDishList()
 	m.refreshCompactTable()
 }
 

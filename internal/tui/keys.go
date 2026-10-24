@@ -10,6 +10,11 @@ type KeyMap struct {
 	NavigateUp        key.Binding
 	NavigateDown      key.Binding
 	Bookmark          key.Binding
+	Search            key.Binding
+	ActiveFilter      key.Binding
+	BookmarkFilter    key.Binding
+	OpenDetails       key.Binding
+	ClearFilters      key.Binding
 	CompactView       key.Binding
 	CompactSort       key.Binding
 	Clipboard         key.Binding
@@ -23,6 +28,11 @@ type KeyMap struct {
 }
 
 var Keys = KeyMap{
+	Search:         key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+	ActiveFilter:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "active only")),
+	BookmarkFilter: key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "bookmarked only")),
+	OpenDetails:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open details")),
+	ClearFilters:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filters")),
 	CycleStation: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "cycle station"),
@@ -102,6 +112,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
+		{k.Search, k.ActiveFilter, k.BookmarkFilter, k.ClearFilters, k.OpenDetails},
 		{k.CycleStation, k.CycleTarget, k.CycleUpSignal, k.CycleDownSignal},
 		{k.NavigateUp, k.NavigateDown, k.Bookmark, k.CompactView},
 		{k.CompactSort, k.Clipboard, k.CycleTheme, k.CycleDistanceUnit},

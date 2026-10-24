@@ -10,6 +10,31 @@ import (
 )
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	if m.ui.searchEditing {
+		switch msg.String() {
+		case "enter":
+			m.ui.searchEditing = false
+			m.search.Blur()
+			return m, nil
+		case "esc":
+			m.search.SetValue(m.ui.searchBefore)
+			m.ui.searchEditing = false
+			m.search.Blur()
+			m.refreshCompactTable()
+			return m, nil
+		default:
+			before := m.search.Value()
+			var cmd tea.Cmd
+			m.search, cmd = m.search.Update(msg)
+			if m.search.Value() != before {
+				m.refreshCompactTable()
+			}
+			return m, cmd
+		}
+	}
 	if m.ui.activeModal != components.ModalNone {
 		switch msg.String() {
 		case "q":
@@ -28,10 +53,41 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if !m.ui.ready {
+		if msg.String() == "r" && !m.ui.loading {
+			m.ui.loading = true
+			m.appData.LastError = ""
+			load := loadDSNConfig(m.httpClient, m.cfg)
+			if m.ui.configLoaded {
+				load = loadDSNData(m.httpClient, m.cfg)
+			}
+			return m, tea.Batch(m.spinner.Tick, load)
+		}
 		return m, nil
 	}
 
 	switch msg.String() {
+	case "/":
+		m.ui.searchBefore = m.search.Value()
+		m.ui.searchEditing = true
+		m.ui.compactView = true
+		return m, m.search.Focus()
+	case "a":
+		m.ui.activeOnly = !m.ui.activeOnly
+		m.refreshCompactTable()
+	case "f":
+		m.ui.bookmarkedOnly = !m.ui.bookmarkedOnly
+		m.refreshCompactTable()
+	case "esc":
+		m.clearFilters()
+	case "enter":
+		if m.useCompactView() && m.compactTable.RowCount() > 0 {
+			if m.ui.width < 80 || m.ui.height < 20 {
+				m.ui.statusMessage = "Details need a terminal of at least 80×20"
+				return m, clearStatusMessage(2 * time.Second)
+			}
+			m.ui.compactView = false
+			m.refreshDishList()
+		}
 	case "s":
 		m.cycleStation()
 	case "t":
@@ -43,12 +99,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "up", "k":
 		if m.useCompactView() {
 			cmd := m.compactTable.Update(msg)
+			m.selectCompactDish()
+			m.refreshDishList()
 			return m, cmd
 		}
 		m.navigateDish(-1)
 	case "down", "j":
 		if m.useCompactView() {
 			cmd := m.compactTable.Update(msg)
+			m.selectCompactDish()
+			m.refreshDishList()
 			return m, cmd
 		}
 		m.navigateDish(1)
@@ -56,9 +116,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.toggleBookmark()
 	case "c":
 		m.ui.compactView = !m.ui.compactView
-		if m.ui.compactView {
-			m.refreshCompactTable()
-		}
+		m.refreshCompactTable()
 	case "S":
 		if m.useCompactView() {
 			m.ui.compactSort.cycle()
@@ -105,6 +163,16 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.useCompactView() {
+		if isWheel {
+			key := tea.KeyMsg{Type: tea.KeyDown}
+			if msg.Button == tea.MouseButtonWheelUp {
+				key.Type = tea.KeyUp
+			}
+			cmd := m.compactTable.Update(key)
+			m.selectCompactDish()
+			m.refreshDishList()
+			return m, cmd
+		}
 		return m, nil
 	}
 
@@ -112,18 +180,15 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case isWheel:
 		cmd := m.dishList.Update(msg)
-		m.selectDish(m.dishList.Index())
+		m.selectVisibleDish(m.dishList.Index())
 		return m, cmd
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
-		station, ok := m.selectedStation()
-		if !ok || msg.X >= leftWidth {
+		if _, ok := m.selectedStation(); !ok || msg.X >= leftWidth {
 			return m, nil
 		}
 
-		dishIdx := m.dishList.VisibleOffset() + msg.Y - 1
-		if dishIdx >= 0 && dishIdx < len(station.Dishes) {
-			m.selectDish(dishIdx)
-		}
+		dishIdx := m.dishList.VisibleOffset() + msg.Y - 2 // filter bar and panel border
+		m.selectVisibleDish(dishIdx)
 	}
 
 	return m, nil
@@ -142,5 +207,5 @@ func (m *Model) toggleBookmark() {
 	}
 
 	m.prefs.toggleBookmark(m.appData.Bookmarks, dish.Name)
-	m.refreshDishList()
+	m.refreshCompactTable()
 }

@@ -12,6 +12,9 @@ import (
 )
 
 type CompactRow struct {
+	StationID   string
+	DishID      string
+	Bookmarked  bool
 	Station     string
 	Dish        string
 	Target      string
@@ -25,6 +28,7 @@ type CompactTable struct {
 	width     int
 	height    int
 	sortLabel string
+	rows      []CompactRow
 }
 
 func NewCompactTable() CompactTable {
@@ -65,7 +69,7 @@ func (c *CompactTable) SetSize(w, h int) {
 	c.width = w
 	c.height = h
 	c.table.SetWidth(w - 4)
-	c.table.SetHeight(h - 6)
+	c.table.SetHeight(max(3, h-4))
 
 	available := w - 8
 	if available < 40 {
@@ -86,13 +90,44 @@ func (c *CompactTable) SetSortLabel(label string) {
 }
 
 func (c *CompactTable) SetRows(rows []CompactRow) {
+	c.rows = rows
 	tableRows := make([]table.Row, len(rows))
 	for i, r := range rows {
 		upStr := fmt.Sprintf("%d", r.UpSignals)
 		downStr := fmt.Sprintf("%d", r.DownSignals)
-		tableRows[i] = table.Row{r.Station, r.Dish, r.Target, upStr, downStr, r.Activity}
+		dish := r.Dish
+		if r.Bookmarked {
+			dish = "★ " + dish
+		}
+		tableRows[i] = table.Row{r.Station, dish, r.Target, upStr, downStr, r.Activity}
 	}
 	c.table.SetRows(tableRows)
+	if len(rows) > 0 && c.table.Cursor() < 0 {
+		c.table.SetCursor(0)
+	}
+}
+
+func (c CompactTable) RowCount() int { return len(c.rows) }
+
+func (c CompactTable) SelectedRow() (CompactRow, bool) {
+	index := c.table.Cursor()
+	if index < 0 || index >= len(c.rows) {
+		return CompactRow{}, false
+	}
+	return c.rows[index], true
+}
+
+func (c *CompactTable) SelectDish(stationID, dishID string) bool {
+	for i, row := range c.rows {
+		if row.StationID == stationID && row.DishID == dishID {
+			// Move through the table API so its viewport follows the selection.
+			// SetCursor alone can leave the selected row below the visible area.
+			c.table.GotoTop()
+			c.table.MoveDown(i)
+			return true
+		}
+	}
+	return false
 }
 
 func (c *CompactTable) Update(msg tea.Msg) tea.Cmd {
@@ -104,6 +139,9 @@ func (c *CompactTable) Update(msg tea.Msg) tea.Cmd {
 func (c CompactTable) View() string {
 	title := style.TitleStyle.Render(fmt.Sprintf("All Dishes (compact) | Sort: %s", c.sortLabel))
 	content := c.table.View()
+	if len(c.rows) == 0 {
+		content = "No matching dishes. Edit search with / or clear filters with Esc."
+	}
 	return style.RenderTitledPanel(title, content, c.width, style.ColorBorderActive)
 }
 

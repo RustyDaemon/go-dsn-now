@@ -3,6 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/components"
 	"github.com/RustyDaemon/go-dsn-now/internal/tui/style"
@@ -22,19 +23,30 @@ func (m Model) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left, m.modal.View(), statusBar)
 	}
 
-	mainArea := m.viewDetailed()
+	var mainArea string
 	if m.useCompactView() {
 		mainArea = m.compactTable.View()
+	} else {
+		mainArea = m.viewDetailed()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, mainArea, statusBar)
+	return lipgloss.JoinVertical(lipgloss.Left, m.viewFilters(), mainArea, statusBar)
 }
 
 func (m Model) viewLoading() string {
 	title := style.TitleStyle.Render("GO DSN NOW")
 	subtitle := style.LabelStyle.Render("Go Deep Space Network Monitor")
 	version := style.MutedStyle.Render("v" + m.cfg.AppVersion)
-	loading := style.DimStyle.Render(m.spinner.View() + " Loading configuration...")
+	stage := "configuration"
+	if m.ui.configLoaded {
+		stage = "live data"
+	}
+	loading := style.DimStyle.Render(m.spinner.View() + " Loading NASA " + stage + "...")
+	hint := style.MutedStyle.Render("q quit")
+	if m.appData.LastError != "" {
+		loading = style.ErrorStyle.Width(max(1, m.ui.width-16)).Render(m.appData.LastError)
+		hint = style.LabelStyle.Render("r retry · q quit")
+	}
 
 	box := lipgloss.JoinVertical(lipgloss.Center,
 		"",
@@ -43,6 +55,7 @@ func (m Model) viewLoading() string {
 		version,
 		"",
 		loading,
+		hint,
 		"",
 	)
 
@@ -63,19 +76,23 @@ func (m Model) viewDetailed() string {
 	rightWidth := m.ui.width - leftWidth
 	mainHeight := m.mainHeight()
 
-	station, _ := m.selectedStation()
 	dishHeight := mainHeight - (2 + len(m.appData.FullData.Stations))
 	if dishHeight < 5 {
 		dishHeight = 5
 	}
 
-	dishListView := m.dishList.View(leftWidth, dishHeight, m.ui.selection.dish, len(station.Dishes))
+	dishListView := m.dishList.View(leftWidth, dishHeight, m.dishList.Index(), len(m.visibleDishIndices()))
 	stationBarView := m.stationBar.View(m.appData.FullData.Stations, m.ui.selection.station)
 	leftPanel := lipgloss.NewStyle().Width(leftWidth).Height(mainHeight).Render(
 		lipgloss.JoinVertical(lipgloss.Left, dishListView, stationBarView),
 	)
 
-	dish, _ := m.selectedDish()
+	dish, ok := m.selectedDish()
+	if !ok {
+		message := ansi.Hardwrap("No matching dishes. Edit search with / or clear filters with Esc.", max(1, rightWidth-4), false)
+		rightPanel := lipgloss.NewStyle().Width(rightWidth).Height(mainHeight).Render(message)
+		return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
+	}
 	targets, _ := m.selectedTargets()
 	upSignals, _ := m.selectedUpSignals()
 	downSignals, _ := m.selectedDownSignals()
